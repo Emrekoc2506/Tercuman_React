@@ -1,0 +1,209 @@
+.ad-creation-container {
+  max-width: 900px;
+  margin: 30px auto;
+  background: #fff;
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.ad-creation-title {
+  text-align: center;
+  color: #333;
+  font-size: 24px;
+  margin-bottom: 30px;
+}
+
+/* Stepper */
+.stepper-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 40px;
+  position: relative;
+}
+
+.stepper-container::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: #e0e0e0;
+  z-index: 1;
+}
+
+.step-item {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #fff;
+  padding: 0 10px;
+}
+
+.step-number {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #f1f1f1;
+  color: #888;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+  font-size: 16px;
+  margin-bottom: 8px;
+  transition: all 0.3s;
+}
+
+.step-label {
+  font-size: 13px;
+  color: #888;
+  font-weight: 500;
+}
+
+.step-item.active .step-number {
+  background-color: #28a745;
+  color: white;
+  box-shadow: 0 0 0 4px rgba(40, 167, 69, 0.2);
+}
+.step-item.active .step-label {
+  color: #28a745;
+  font-weight: bold;
+}
+
+.step-item.completed .step-number {
+  background-color: #218838;
+  color: white;
+}
+
+/* Form İçeriği */
+.ad-form-content {
+  min-height: 300px;
+  padding: 20px 0;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #444;
+}
+
+.form-group label span.required {
+  color: red;
+  margin-left: 4px;
+}
+
+.form-control {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: border-color 0.2s;
+}
+
+.form-control:focus {
+  border-color: #28a745;
+  outline: none;
+}
+
+/* Kutu / Buton Stilleri */
+.category-card {
+  border: 2px solid #ddd;
+  padding: 20px;
+  border-radius: 8px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #fafafa;
+}
+
+.category-card:hover {
+  border-color: #007bff;
+  background: #f0f8ff;
+}
+.category-card.selected {
+  border-color: #28a745;
+  background: #e9f7ef;
+}
+
+/* Navigasyon Butonları */
+.wizard-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+
+.btn-wizard {
+  padding: 10px 25px;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  border: none;
+  font-size: 15px;
+  transition: background 0.2s;
+}
+
+.btn-prev {
+  background: #f1f1f1;
+  color: #333;
+}
+.btn-prev:hover {
+  background: #e2e2e2;
+}
+
+.btn-next {
+  background: #007bff;
+  color: white;
+}
+.btn-next:hover {
+  background: #0056b3;
+}
+
+.btn-submit {
+  background: #28a745;
+  color: white;
+}
+.btn-submit:hover {
+  background: #1e7e34;
+}
+
+.photo-upload-box {
+  border: 2px dashed #bbb;
+  padding: 40px;
+  text-align: center;
+  border-radius: 8px;
+  background: #fdfdfd;
+  cursor: pointer;
+}
+.photo-upload-box:hover {
+  border-color: #007bff;
+  background: #f8fbff;
+}
+
+.uploaded-photos {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.photo-preview {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 2px solid #ddd;
+}

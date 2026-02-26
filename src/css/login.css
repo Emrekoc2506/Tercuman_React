@@ -1,0 +1,282 @@
+/* Google Fonts - Poppins fontunu en başta yüklüyoruz */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+
+/* Sayfa Arka Planı */
+.login-page-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #e8e8e8;
+  width: 100%;
+  font-family: 'Poppins', sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Beyaz Kart Tasarımı */
+.auth-container {
+  width: 380px;
+  background: #ffffff;
+  border-radius: 35px;
+  padding: 40px 35px;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+/* Başlık */
+.heading {
+  font-weight: 800;
+  font-size: 32px;
+  color: #0099db;
+  margin-bottom: 30px;
+  letter-spacing: -0.5px;
+  text-align: center;
+}
+
+.form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Input Alanları */
+.input {
+  width: 100%;
+  background: #ffffff;
+  border: none;
+  padding: 16px 25px;
+  border-radius: 50px;
+  font-size: 14px;
+  color: #333;
+  outline: none;
+  box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.08); /* Hafif gölge */
+  transition: all 0.3s ease;
+}
+
+.input::placeholder {
+  color: #a0a0a0;
+  font-weight: 500;
+}
+
+.input:focus {
+  box-shadow: 0px 8px 20px rgba(0, 153, 219, 0.2);
+  transform: translateY(-2px);
+}
+
+/* Şifre Kapsayıcısı */
+.password-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.password-wrapper input {
+  padding-right: 45px;
+}
+
+/* Göz İkonu */
+.password-icon {
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  color: #333;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  z-index: 10;
+}
+
+/* Şifremi Unuttum */
+.forgot-password {
+  text-align: left;
+  margin-left: 15px;
+  margin-top: -5px;
+}
+
+.forgot-password a {
+  font-size: 12px;
+  color: #0099db;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+/* Giriş Butonu */
+.login-button {
+  width: 100%;
+  padding: 15px;
+  margin-top: 15px;
+  border: none;
+  border-radius: 50px;
+  background: linear-gradient(90deg, #0099db 0%, #0088c2 100%);
+  color: white;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 10px 25px rgba(0, 153, 219, 0.4);
+  transition: transform 0.2s;
+  display: block;
+}
+
+.login-button:hover {
+  transform: scale(1.02);
+}
+
+/* Sosyal Medya Bölümü - Divider */
+.social-divider {
+  margin-top: 25px;
+  margin-bottom: 5px;
+  font-size: 12px;
+  color: #aaa;
+  font-weight: 500;
+  text-align: center;
+  width: 100%;
+}
+
+/* Alt Link */
+.agreement {
+  text-align: center;
+  margin-top: 5px;
+}
+
+.agreement a {
+  font-size: 10px;
+  color: #0099db;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+/* --- YENİ SOSYAL MEDYA BUTON CSS (Entegre Edildi) --- */
+
+.wrapper {
+  display: inline-flex;
+  list-style: none;
+  width: 100%;
+  padding-top: 10px;
+  font-family: "Poppins", sans-serif;
+  justify-content: center;
+  gap: 10px; /* Butonlar arası boşluk */
+}
+
+.wrapper .icon {
+  position: relative;
+  background: #fff;
+  z-index: 0;
+  border-radius: 50%;
+  margin: 0 10px; /* Kenar boşlukları */
+  width: 50px;
+  height: 50px;
+  font-size: 20px; /* İkon boyutu */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 10px 10px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.wrapper .icon::after {
+  content: "";
+  position: absolute;
+  display: inline-block;
+  height: 100%;
+  width: 100%;
+  background-color: transparent;
+  z-index: -1;
+  border-radius: 50%;
+  top: 100%;
+}
+
+.wrapper .icon:hover::after {
+  animation: bg-pos 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) 1 both;
+}
+
+.wrapper .icon:hover {
+  color: #fff;
+  overflow: unset;
+  transition: color 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  animation: overflow-toggle 0.7s;
+}
+
+/* Tooltip Ayarları */
+.wrapper .tooltip {
+  position: absolute;
+  top: 0;
+  font-size: 14px;
+  background: #fff;
+  color: #fff;
+  padding: 5px 8px;
+  border-radius: 5px;
+  box-shadow: 0 10px 10px rgba(0, 0, 0, 0.1);
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  white-space: nowrap; /* Yazının taşmasını önler */
+}
+
+.wrapper .tooltip::before {
+  position: absolute;
+  content: "";
+  height: 8px;
+  width: 8px;
+  background: #fff;
+  bottom: -3px;
+  left: 50%;
+  transform: translate(-50%) rotate(45deg);
+  transition: all 0.3s 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.wrapper .icon:hover .tooltip {
+  top: -45px;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+/* Markalara Göre Renklendirme (Senin ikonlarına uyarladım) */
+
+/* Google (Kırmızı) */
+.wrapper .google::after {
+  background-color: #DB4437;
+}
+.wrapper .google:hover .tooltip,
+.wrapper .google:hover .tooltip::before {
+  background: #DB4437;
+  color: #fff;
+}
+
+/* Apple (Siyah/Gri) */
+.wrapper .apple::after {
+  background-color: #333333;
+}
+.wrapper .apple:hover .tooltip,
+.wrapper .apple:hover .tooltip::before {
+  background: #333333;
+  color: #fff;
+}
+
+/* Twitter (Mavi) */
+.wrapper .twitter::after {
+  background-color: #1da1f2;
+}
+.wrapper .twitter:hover .tooltip,
+.wrapper .twitter:hover .tooltip::before {
+  background: #1da1f2;
+  color: #fff;
+}
+
+/* Keyframes */
+@keyframes bg-pos {
+  0% { top: 100%; }
+  100% { top: 0; }
+}
+
+@keyframes overflow-toggle {
+  0% { overflow: hidden; }
+  100% { overflow: visible; }
+}

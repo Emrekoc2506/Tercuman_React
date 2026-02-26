@@ -1,0 +1,91 @@
+/* Ana Navigasyon Çubuğu */
+.main-nav {
+  background-color: #fff;
+  padding: 15px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.nav-list {
+  display: flex;
+  list-style: none;
+  gap: 30px;
+  color: #1a4a7c; /* Görseldeki koyu mavi tonu */
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.nav-item {
+  position: relative;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+/* Birinci Dropdown (Hizmetlerimizin Altı) */
+.dropdown-menu {
+  display: none; /* Varsayılan olarak gizli */
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background-color: #fff;
+  min-width: 220px;
+  box-shadow: 0px 8px 16px rgba(0,0,0,0.1);
+  list-style: none;
+  padding: 0;
+  z-index: 100;
+}
+
+/* Hover durumunda menüyü göster */
+.nav-item:hover > .dropdown-menu {
+  display: block;
+}
+
+/* Menü Öğeleri */
+.dropdown-item {
+  padding: 12px 20px;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #333;
+  transition: background 0.3s;
+}
+
+.dropdown-item:hover {
+  background-color: #f5faff; /* Hafif mavi hover rengi */
+  color: #1a4a7c;
+}
+
+/* Yana Açılan Submenu (Yazılı Tercüme'nin Yanı) */
+.submenu {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 100%; /* Tam sağında başlasın */
+  background-color: #fff;
+  min-width: 220px;
+  box-shadow: 8px 8px 16px rgba(0,0,0,0.1);
+  list-style: none;
+  padding: 0;
+}
+
+.dropdown-item:hover > .submenu {
+  display: block;
+}
+
+.submenu li {
+  padding: 12px 20px;
+  border-bottom: 1px solid #f0f0f0;
+  color: #555;
+}
+
+.submenu li:hover {
+  background-color: #f5faff;
+  color: #1a4a7c;
+}
+
+/* Ok işaretleri için ufak dokunuşlar */
+.arrow-right {
+  font-size: 18px;
+  color: #ccc;
+}

@@ -1,0 +1,146 @@
+/* Billboard Container */
+.billboard-container {
+    position: relative;
+    width: 100%;
+    height: 600px;
+    overflow: hidden;
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* Background Animation Effect (Optional overlay) */
+.billboard-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at center, rgba(59, 130, 246, 0.1) 0%, transparent 70%);
+    z-index: 1;
+}
+
+/* Content Wrapper */
+.billboard-content {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    max-width: 900px;
+    padding: 0 20px;
+    animation: fadeIn 1s ease-out;
+}
+
+/* Title Animation */
+.billboard-title {
+    font-size: 4rem;
+    font-weight: 800;
+    margin-bottom: 20px;
+    background: linear-gradient(to right, #60a5fa, #a78bfa);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: slideUp 0.8s ease-out forwards;
+    opacity: 0;
+    transform: translateY(20px);
+}
+
+/* Description Animation */
+.billboard-description {
+    font-size: 1.5rem;
+    margin-bottom: 40px;
+    color: #cbd5e1;
+    line-height: 1.6;
+    animation: slideUp 0.8s ease-out 0.2s forwards;
+    opacity: 0;
+    transform: translateY(20px);
+}
+
+/* CTA Button */
+.billboard-btn {
+    background: #3b82f6;
+    color: white;
+    padding: 18px 45px;
+    font-size: 1.25rem;
+    border-radius: 50px;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.5);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: slideUp 0.8s ease-out 0.4s forwards;
+    opacity: 0;
+    transform: translateY(20px);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.billboard-btn:hover {
+    transform: translateY(-2px) scale(1.05); /* Combined transform */
+    box-shadow: 0 20px 30px -10px rgba(59, 130, 246, 0.6);
+    background: #2563eb;
+}
+
+.billboard-btn:active {
+    transform: translateY(0) scale(0.98);
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideUp {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Slider Dots (If needed later) */
+.billboard-dots {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 10px;
+    z-index: 3;
+}
+
+.billboard-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.billboard-dot.active {
+    background: #60a5fa;
+    width: 30px;
+    border-radius: 6px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .billboard-container {
+        height: 500px;
+    }
+    
+    .billboard-title {
+        font-size: 2.5rem;
+    }
+    
+    .billboard-description {
+        font-size: 1.1rem;
+    }
+    
+    .billboard-btn {
+        padding: 15px 30px;
+        font-size: 1.1rem;
+    }
+}
