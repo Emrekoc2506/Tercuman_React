@@ -2,10 +2,9 @@ import React from "react";
 import { Outlet, Link, useNavigate } from "react-router-dom";
 
 // ==============================================================================
-// CUSTOMER LAYOUT (MÜŞTERİ TEMASI)
+// USER LAYOUT (KULLANICI TEMASI)
 // ==============================================================================
-// Bu düzen, sadece Müşteriler (Customer) giriş yaptığında görünecek.
-// Sol tarafta bir menü (Sidebar) ve sağda içerik alanı olacak.
+// Bu düzen tüm kayıtlı kullanıcılar için ortak panel görünümünü temsil eder.
 
 const CustomerLayout = () => {
   const navigate = useNavigate();
@@ -21,19 +20,23 @@ const CustomerLayout = () => {
     <div style={{ display: "flex", minHeight: "100vh" }}>
       {/* SOL MENÜ (SIDEBAR) */}
       <aside style={{ width: "250px", background: "#f4f4f4", padding: "20px" }}>
-        <h3>Müşteri Paneli</h3>
+        <h3>Kullanıcı Paneli</h3>
         <ul style={{ listStyle: "none", padding: 0 }}>
           <li style={{ margin: "10px 0" }}>
-            <Link to="/customer/dashboard">Gösterge Paneli</Link>
+            <Link to="/user/dashboard">Gösterge Paneli</Link>
           </li>
           <li style={{ margin: "10px 0" }}>
-            <Link to="/customer/profile">Profilim</Link>
+            <Link to="/user/profile">Profilim</Link>
           </li>
-          {/* Gelecekte eklenebilecek linkler:
           <li style={{ margin: "10px 0" }}>
-            <Link to="/customer/orders">Siparişlerim</Link>
+            <Link to="/user/messages">Mesajlarım</Link>
           </li>
-          */}
+          <li style={{ margin: "10px 0" }}>
+            <Link to="/user/languages">Dillerim</Link>
+          </li>
+          <li style={{ margin: "10px 0" }}>
+            <Link to="/user/ad-create">İlan Oluştur</Link>
+          </li>
           <li style={{ marginTop: "20px" }}>
             <button
               onClick={handleLogout}

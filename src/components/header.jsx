@@ -21,14 +21,11 @@ function Header() {
   const [notifications, setNotifications] = useState([]); // Gelen bildirimleri tutar
   const [isDropdownOpen, setIsDropdownOpen] = useState(false); // Çana tıklanınca menüyü açıp kapatma
 
-  // Eğer giriş yapan "Translator" ise sayfa açıldığında bildirimlerini getir
   useEffect(() => {
-    // case-insensitive kontrol
-    const roleLower = userRole ? userRole.trim().toLowerCase() : "";
-    if (roleLower === "translator" && token) {
+    if (token) {
       fetchNotifications();
     }
-  }, [userRole, token]);
+  }, [token]);
 
   const fetchNotifications = async () => {
     try {
@@ -37,7 +34,11 @@ function Header() {
         setNotifications(res.data.data || []);
       }
     } catch (error) {
-      console.error("Bildirimler alınamadı:", error);
+      if (error.response?.status === 401) {
+        console.warn("Bildirimler yetkisiz erişim nedeniyle (401) atlanıyor.");
+      } else {
+        console.error("Bildirimler alınamadı:", error);
+      }
     }
   };
 
@@ -72,22 +73,10 @@ function Header() {
     window.location.reload(); // Header'ın güncellenmesi için sayfayı yenile (Basit çözüm)
   };
 
-  // Kullanıcı rolüne göre panel adresi belirleme
+  // Herkes aynı panele (Dashboard) gidiyor
   const getDashboardPath = () => {
-    // NOT: Localstorage'dan dönen string'i normalize edelim
-    // (Örn: "Customer ", "admin", "Translator")
-    const role = userRole ? userRole.trim().toLowerCase() : "";
-
-    if (role === "admin") return "/admin/dashboard";
-    if (role === "translator") return "/translator/dashboard";
-    if (role === "customer" || role === "user") return "/customer/dashboard";
-
-    // Geçersiz veya bilinmeyen rol ise:
-    return "/";
+    return "/user/dashboard";
   };
-
-  // UI Renderleri için role belirleme
-  const roleForUI = userRole ? userRole.trim().toLowerCase() : "";
 
   return (
     <header className="main-header" style={{ position: "relative" }}>
@@ -148,8 +137,8 @@ function Header() {
           className="header-action"
           style={{ display: "flex", alignItems: "center", gap: "10px" }}
         >
-          {/* SADECE TERCÜMANLAR İÇİN BİLDİRİM ÇANI */}
-          {roleForUI === "translator" && token && (
+          {/* BİLDİRİM ÇANI (Giriş Yapan Herkes İçin) */}
+          {token && (
             <div style={{ position: "relative", marginRight: "10px" }}>
               <button
                 onClick={toggleDropdown}
@@ -323,20 +312,18 @@ function Header() {
           ) : (
             // Giriş YAPMIŞ kullanıcılar için:
             <>
-              {roleForUI === "translator" && (
-                <button
-                  onClick={() => navigate("/translator/ad-create")}
-                  className="btn-modern"
-                  style={{
-                    fontSize: "0.85rem",
-                    padding: "8px 16px",
-                    background: "linear-gradient(135deg, #17a2b8, #138496)", // Info Blue color
-                    marginRight: "5px",
-                  }}
-                >
-                  İlan Yükle
-                </button>
-              )}
+              <button
+                onClick={() => navigate("/user/ad-create")}
+                className="btn-modern"
+                style={{
+                  fontSize: "0.85rem",
+                  padding: "8px 16px",
+                  background: "linear-gradient(135deg, #17a2b8, #138496)", // Info Blue color
+                  marginRight: "5px",
+                }}
+              >
+                İlan Yükle
+              </button>
               <button
                 onClick={() => {
                   const path = getDashboardPath();

@@ -84,7 +84,7 @@ const LoginPage = () => {
       const res = await loginUser(data);
       console.log("LOGIN API YANITI:", res.data); // Hata Tespiti İçin Eklendi
 
-      if (res.data.success) {
+      if (res.data.success || res.data.token || res.data.accessToken) {
         // Backend'in DTO yapısına göre data.data
         const responseData = res.data.data || res.data;
 
@@ -99,7 +99,7 @@ const LoginPage = () => {
         // EĞER ROL JSON'DA YOKSA (undefined ise) AMA TOKEN VARSA TOKEN'I ÇÖZ
         if (!incomingRole && incomingToken) {
           const decoded = decodeJwt(incomingToken);
-          console.log("ÇÖZÜMLENMİŞ TOKEN İÇERİĞİ:", decoded);
+          // console.log("ÇÖZÜMLENMİŞ TOKEN İÇERİĞİ:", decoded);
           if (decoded) {
             // ASP.NET Core varsayılan Claim tipleri veya normal role prop'u
             incomingRole =
@@ -116,7 +116,7 @@ const LoginPage = () => {
           }
         }
 
-        console.log("ÇIKARILAN ROL BİLGİSİ:", incomingRole);
+        // console.log("ÇIKARILAN ROL BİLGİSİ:", incomingRole);
 
         // -- 1. ACCESS TOKEN (Kısa süreli - İstek yapmak için kullanılır) tarayıcıya kaydediliyor --
         if (incomingToken) localStorage.setItem("token", incomingToken);

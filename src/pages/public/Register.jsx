@@ -7,7 +7,7 @@ import {
   FaApple,
   FaTwitter,
 } from "react-icons/fa";
-import { registerUser } from "../../services/api";
+import { registerUser, loginUser } from "../../services/api";
 import "../../css/login.css";
 
 const Register = () => {
@@ -18,7 +18,7 @@ const Register = () => {
     fullName: "",
     email: "",
     password: "",
-    role: "Customer",
+    gender: "",
   });
 
   const [error, setError] = useState("");
@@ -68,8 +68,8 @@ const Register = () => {
     setMessage("");
 
     // 1. Koşul: Boş alan kontrolü
-    if (!data.fullName || !data.email || !data.password) {
-      setError("Her alanı doldurmak zorunludur.");
+    if (!data.fullName || !data.email || !data.password || !data.gender) {
+      setError("Tüm alanları ve cinsiyeti doldurmak zorunludur.");
       return;
     }
 
@@ -91,26 +91,101 @@ const Register = () => {
     try {
       // API'ye gönderilecek veriyi hazırla
       const payload = { ...data };
+      if (payload.gender) {
+        payload.gender = Number(payload.gender);
+      }
 
       const res = await registerUser(payload);
       if (res.data.success) {
-        setMessage("Kayıt başarılı! Giriş sayfasına yönlendiriliyorsunuz...");
-        setTimeout(() => {
-          navigate("/login");
-        }, 2000);
-        setData({
-          fullName: "",
-          email: "",
-          password: "",
-          role: "Customer",
-        });
+        setMessage("Kayıt başarılı! Sisteme giriş yapılıyor...");
+
+        try {
+          // Otomatik giriş işlemini başlat
+          const loginRes = await loginUser({
+            email: data.email,
+            password: data.password,
+          });
+
+          if (
+            loginRes.data.success ||
+            loginRes.data.token ||
+            loginRes.data.accessToken
+          ) {
+            const responseData = loginRes.data.data || loginRes.data;
+            const incomingToken =
+              responseData.accessToken || responseData.token;
+            const incomingRefreshToken = responseData.refreshToken;
+            let incomingRole = responseData.role;
+
+            // Rol çözme işlemi (eğer yanıt içinde açıkça yoksa token içerisinden bul)
+            if (!incomingRole && incomingToken) {
+              try {
+                const base64Url = incomingToken.split(".")[1];
+                const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+                const jsonPayload = decodeURIComponent(
+                  atob(base64)
+                    .split("")
+                    .map(function (c) {
+                      return (
+                        "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2)
+                      );
+                    })
+                    .join(""),
+                );
+                const decoded = JSON.parse(jsonPayload);
+                if (decoded) {
+                  incomingRole =
+                    decoded[
+                      "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
+                    ] ||
+                    decoded.role ||
+                    decoded.Role;
+                  if (Array.isArray(incomingRole)) {
+                    incomingRole = incomingRole[0];
+                  }
+                }
+              } catch (e) {
+                console.error("Token decode hatası:", e);
+              }
+            }
+
+            // localStorage'a verileri yaz
+            if (incomingToken) localStorage.setItem("token", incomingToken);
+            if (incomingRefreshToken)
+              localStorage.setItem("refreshToken", incomingRefreshToken);
+            if (incomingRole) localStorage.setItem("role", incomingRole);
+
+            // Navigasyon barın ve sistemin bu değişimi tam algılaması için window.location.href ile ana sayfaya yönlendir
+            window.location.href = "/";
+            return;
+          } else {
+            throw new Error("Giriş bilgileri alınamadı.");
+          }
+        } catch (loginErr) {
+          console.error("Otomatik giriş hatası:", loginErr);
+          setMessage(
+            "Kayıt başarılı ancak otomatik giriş yapılamadı. Giriş sayfasına yönlendiriliyorsunuz...",
+          );
+          setTimeout(() => navigate("/login"), 2000);
+        }
       }
     } catch (err) {
       console.error(err);
-      setError(
+      let errorMessage =
         err.response?.data?.message ||
-          "Kayıt işlemi sırasında bir hata oluştu.",
-      );
+        "Kayıt işlemi sırasında bir hata oluştu.";
+
+      // Backend'den gelen spesifik İngilizce hatayı yakalayıp Türkçe'ye çeviriyoruz
+      if (
+        typeof errorMessage === "string" &&
+        (errorMessage.includes("Email already exists") ||
+          errorMessage.includes("already registered"))
+      ) {
+        errorMessage =
+          "Bu e-posta adresi zaten sistemde kayıtlı. Lütfen farklı bir adres deneyin veya giriş yapın.";
+      }
+
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -201,7 +276,6 @@ const Register = () => {
             )}
           </div>
 
-          {/* Password Input */}
           <div className="password-wrapper">
             <input
               required
@@ -220,54 +294,27 @@ const Register = () => {
             </span>
           </div>
 
-          {/* PhoneNumber Input with Country Code */}
-
-          {/* Role Selection */}
-          <div
-            style={{
-              display: "flex",
-              gap: "20px",
-              margin: "15px 0 5px",
-              color: "#555",
-              fontSize: "14px",
-              justifyContent: "center",
-            }}
-          >
-            <label
+          {/* Gender (Cinsiyet) Seçimi */}
+          <div style={{ marginTop: "10px" }}>
+            <select
+              required
+              className="modern-input"
+              id="gender"
+              value={data.gender}
+              onChange={handleInputChange}
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "5px",
-                cursor: "pointer",
+                color: data.gender ? "#333" : "#777",
               }}
             >
-              <input
-                type="radio"
-                name="role"
-                value="Customer"
-                checked={data.role === "Customer"}
-                onChange={(e) => setData({ ...data, role: e.target.value })}
-              />
-              Müşteri Ol
-            </label>
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "5px",
-                cursor: "pointer",
-              }}
-            >
-              <input
-                type="radio"
-                name="role"
-                value="Translator"
-                checked={data.role === "Translator"}
-                onChange={(e) => setData({ ...data, role: e.target.value })}
-              />
-              Çevirmen Ol
-            </label>
+              <option value="" disabled>
+                Cinsiyetinizi Seçin
+              </option>
+              <option value="1">Erkek</option>
+              <option value="2">Kadın</option>
+            </select>
           </div>
+
+          {/* PhoneNumber Input with Country Code */}
 
           {/* Register Button */}
           <button

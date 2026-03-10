@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { getLanguages, getCities, createListing } from "../../services/api";
 import "../../css/adCreation.css";
 
 const AdCreationWizard = () => {
@@ -7,166 +8,271 @@ const AdCreationWizard = () => {
 
   // Sihirbaz (Stepper) Adımları
   const steps = [
-    { id: 1, label: "Kategori Seçimi" },
+    { id: 1, label: "Temel Bilgiler" },
     { id: 2, label: "İlan Detayları" },
-    { id: 3, label: "Medya Yükleme" },
-    { id: 4, label: "İletişim & Onay" },
+    { id: 3, label: "Onay & Yayınla" },
   ];
 
   const [currentStep, setCurrentStep] = useState(1);
 
-  // Form Verileri (State)
+  // API'den gelecek veriler
+  const [languages, setLanguages] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [loadingInitial, setLoadingInitial] = useState(true);
+
+  // Backend'e gönderilecek orijinal Form Verileri
   const [formData, setFormData] = useState({
-    category: "",
     title: "",
     description: "",
     price: "",
-    currency: "TL",
-    location: "Online",
-    photos: [], // Çoklu fotoğraf için File dizisi
-    photoPreviews: [], // Ekranda göstermek için Base64/URL dizisi
-    contactPreference: "telefon",
-    showFullName: true,
-    agreedToTerms: false,
+    experienceLevel: 1, // Default (1 = 0-1 Yıl)
+    serviceType: 1, // Default (1 = Online)
+    sourceLanguageId: "",
+    targetLanguageId: "",
+    cityId: "",
   });
 
-  // Hata mesajları için
+  // Hata mesajları
   const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Sayfa ilk yüklendiğinde dilleri ve şehirleri çek
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      try {
+        const [langRes, cityRes] = await Promise.all([
+          getLanguages(),
+          getCities(),
+        ]);
+        // Backend standart dönüş modeli gereği datalar `res.data` içerisinde,
+        // ancak direkt dizi dönüyorsa `res.data` kullanılır.
+        const langData = langRes.data?.data || langRes.data || [];
+        const cityData = cityRes.data?.data || cityRes.data || [];
+
+        setLanguages(langData);
+        setCities(cityData);
+      } catch (error) {
+        console.error("Başlangıç verileri yüklenirken hata:", error);
+      } finally {
+        setLoadingInitial(false);
+      }
+    };
+    fetchInitialData();
+  }, []);
 
   // Input değişimlerini yakalama
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value, type } = e.target;
+
+    // Rakam olması gereken alanları (price, experienceLevel, serviceType) parse et
+    let finalValue = value;
+    if (
+      type === "number" ||
+      name === "experienceLevel" ||
+      name === "serviceType"
+    ) {
+      finalValue = value ? Number(value) : "";
+    }
+
     setFormData((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? checked : value,
+      [name]: finalValue,
     }));
-  };
 
-  // Fotoğraf Yükleme İşlemi (Çoklu)
-  const handlePhotoUpload = (e) => {
-    const files = Array.from(e.target.files);
-    if (files.length === 0) return;
-
-    // Maksimum 10 fotoğraf limiti koyalım
-    if (formData.photos.length + files.length > 10) {
-      alert("En fazla 10 fotoğraf yükleyebilirsiniz.");
-      return;
+    // Hata varsa ilgili hatayı temizle
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: null }));
     }
-
-    const newPhotos = [...formData.photos, ...files];
-    setFormData((prev) => ({ ...prev, photos: newPhotos }));
-
-    // Önizleme için FileReader kullanımı
-    files.forEach((file) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData((prev) => ({
-          ...prev,
-          photoPreviews: [...prev.photoPreviews, reader.result],
-        }));
-      };
-      reader.readAsDataURL(file);
-    });
   };
 
-  // İleri Gitmeden Önce Temel Validasyon
-  const validateStep = () => {
+  // --- ADIM VİDALASYONLARI ---
+
+  const validateStep1 = () => {
     const newErrors = {};
-    if (currentStep === 1 && !formData.category) {
-      newErrors.category = "Lütfen bir kategori seçiniz.";
+    if (!formData.sourceLanguageId)
+      newErrors.sourceLanguageId = "Kaynak dil seçmelisiniz.";
+    if (!formData.targetLanguageId)
+      newErrors.targetLanguageId = "Hedef dil seçmelisiniz.";
+    if (
+      formData.sourceLanguageId &&
+      formData.targetLanguageId &&
+      formData.sourceLanguageId === formData.targetLanguageId
+    ) {
+      newErrors.targetLanguageId = "Kaynak ve Hedef dil aynı olamaz.";
     }
-    if (currentStep === 2) {
-      if (!formData.title) newErrors.title = "İlan başlığı zorunludur.";
-      if (!formData.description)
-        newErrors.description = "Açıklama alanı zorunludur.";
-      if (!formData.price) newErrors.price = "Fiyat alanı zorunludur.";
+    if (!formData.cityId) newErrors.cityId = "Şehir seçmelisiniz.";
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const validateStep2 = () => {
+    const newErrors = {};
+    if (!formData.title || formData.title.trim() === "")
+      newErrors.title = "İlan başlığı zorunludur.";
+
+    if (!formData.description || formData.description.trim().length < 20) {
+      newErrors.description =
+        "Açıklama en az 20 karakter uzunluğunda olmalıdır.";
     }
-    if (currentStep === 4 && !formData.agreedToTerms) {
-      newErrors.agreedToTerms = "İlan verme kurallarını kabul etmelisiniz.";
+
+    if (!formData.price || Number(formData.price) <= 0) {
+      newErrors.price = "Geçerli bir fiyat girmelisiniz (0'dan büyük olmalı).";
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  // İleri gitme
   const nextStep = () => {
-    if (validateStep() && currentStep < steps.length) {
+    let isValid = false;
+    if (currentStep === 1) isValid = validateStep1();
+    if (currentStep === 2) isValid = validateStep2();
+
+    if (isValid && currentStep < steps.length) {
       setCurrentStep((prev) => prev + 1);
     }
   };
 
+  // Geri gitme
   const prevStep = () => {
     if (currentStep > 1) {
       setCurrentStep((prev) => prev - 1);
     }
   };
 
-  const handleSubmit = (e) => {
+  // İlanı Gönderme (Backend Entegrasyonu)
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateStep()) return;
+    if (!validateStep1() || !validateStep2()) return;
 
-    console.log(
-      "🚀 MOCK: İlan verileri backend'e gönderilmeye hazır:",
-      formData,
-    );
-    alert(
-      "Frontend Arayüzü Hazır! C# Backend ekibi 'TranslatorAds' tablosunu ve /api/translator/ads endpointini yazdıktan sonra bu ilan gerçek anlamda kaydedilecektir.",
-    );
-    navigate("/translator/dashboard");
+    setIsSubmitting(true);
+    try {
+      // Body verisini oluştur (Backend'in beklediği JSON nesnesi)
+      const payload = {
+        title: formData.title,
+        description: formData.description,
+        price: Number(formData.price),
+        experienceLevel: Number(formData.experienceLevel),
+        serviceType: Number(formData.serviceType),
+        sourceLanguageId: formData.sourceLanguageId,
+        targetLanguageId: formData.targetLanguageId,
+        cityId: formData.cityId,
+        createdAt: new Date().toISOString(),
+      };
+
+      console.log("İlan Gönderiliyor:", payload);
+
+      const response = await createListing(payload);
+
+      alert("İlanınız başarıyla oluşturuldu!");
+      navigate("/user/dashboard"); // İlan oluşturulduktan sonra dashboarda yönlendir
+    } catch (error) {
+      console.error("İlan oluşturulurken hata:", error);
+
+      // Backend'den gelen spesifik hata mesajlarını konsola yazdır
+      if (error.response && error.response.data) {
+        console.error(
+          "Backend Hata Detayı:",
+          JSON.stringify(error.response.data, null, 2),
+        );
+      }
+
+      alert(
+        "Bir hata oluştu. Lütfen konsolu kontrol edin (F12) ve hatanın detayını atın.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // -- RENDER EDİLECEK ADIMLAR (STEPS) --
 
   const renderStep1 = () => (
     <div className="ad-form-content">
-      <h3 style={{ marginBottom: "20px" }}>
-        Hangi hizmeti vermek istiyorsunuz?
-      </h3>
-      {errors.category && (
-        <div style={{ color: "red", marginBottom: "15px" }}>
-          {errors.category}
-        </div>
-      )}
+      <h3 style={{ marginBottom: "20px" }}>Dil ve Bölge Tercihleriniz</h3>
+
       <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: "20px",
-        }}
+        style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}
       >
-        <div
-          className={`category-card ${
-            formData.category === "Yazılı Çeviri" ? "selected" : ""
-          }`}
-          onClick={() =>
-            setFormData({ ...formData, category: "Yazılı Çeviri" })
-          }
-        >
-          <h4>📝 Yazılı Çeviri</h4>
-          <p style={{ fontSize: "12px", color: "#666" }}>
-            Noter onaylı, akademik, tıbbi, hukuki veya edebi çeviri hizmetleri.
-          </p>
+        {/* KAYNAK DİL */}
+        <div className="form-group">
+          <label>
+            Kaynak Dil <span className="required">*</span>
+          </label>
+          <select
+            className="form-control"
+            name="sourceLanguageId"
+            value={formData.sourceLanguageId}
+            onChange={handleChange}
+          >
+            <option value="">Seçiniz...</option>
+            {languages.map((lang) => (
+              <option key={lang.id} value={lang.id}>
+                {lang.name}
+              </option>
+            ))}
+          </select>
+          {errors.sourceLanguageId && (
+            <small style={{ color: "red" }}>{errors.sourceLanguageId}</small>
+          )}
         </div>
-        <div
-          className={`category-card ${
-            formData.category === "Akademik & Sınav Hazırlık" ? "selected" : ""
-          }`}
-          onClick={() =>
-            setFormData({ ...formData, category: "Akademik & Sınav Hazırlık" })
-          }
-        >
-          <h4>� Akademik & Sınav Hazırlık</h4>
-          <p style={{ fontSize: "12px", color: "#666" }}>
-            YKS, LGS, KPSS hazırlık veya Üniversite derslerine takviye
-            eğitimleri.
-          </p>
+
+        {/* HEDEF DİL */}
+        <div className="form-group">
+          <label>
+            Hedef Dil <span className="required">*</span>
+          </label>
+          <select
+            className="form-control"
+            name="targetLanguageId"
+            value={formData.targetLanguageId}
+            onChange={handleChange}
+          >
+            <option value="">Seçiniz...</option>
+            {languages.map((lang) => (
+              <option key={lang.id} value={lang.id}>
+                {lang.name}
+              </option>
+            ))}
+          </select>
+          {errors.targetLanguageId && (
+            <small style={{ color: "red" }}>{errors.targetLanguageId}</small>
+          )}
         </div>
+      </div>
+
+      {/* ŞEHİR */}
+      <div className="form-group" style={{ marginTop: "15px" }}>
+        <label>
+          Şehir <span className="required">*</span>
+        </label>
+        <select
+          className="form-control"
+          name="cityId"
+          value={formData.cityId}
+          onChange={handleChange}
+        >
+          <option value="">Seçiniz...</option>
+          {cities.map((city) => (
+            <option key={city.id} value={city.id}>
+              {city.name}
+            </option>
+          ))}
+        </select>
+        {errors.cityId && (
+          <small style={{ color: "red" }}>{errors.cityId}</small>
+        )}
       </div>
     </div>
   );
 
   const renderStep2 = () => (
     <div className="ad-form-content">
+      <h3 style={{ marginBottom: "20px" }}>Hizmetinizin Detayları</h3>
+
+      {/* BAŞLIK */}
       <div className="form-group">
         <label>
           İlan Başlığı <span className="required">*</span>
@@ -175,228 +281,185 @@ const AdCreationWizard = () => {
           type="text"
           className="form-control"
           name="title"
-          placeholder="Örn: İngilizce - Türkçe Tıbbi Metin Çevirisi"
+          placeholder="Örn: Arapça → Türkçe Özel Ders ve Yeminli Çeviri"
           value={formData.title}
           onChange={handleChange}
         />
         {errors.title && <small style={{ color: "red" }}>{errors.title}</small>}
       </div>
 
+      {/* AÇIKLAMA */}
       <div className="form-group">
         <label>
-          Açıklama <span className="required">*</span>
+          İlan Açıklaması <span className="required">*</span>
         </label>
         <textarea
           className="form-control"
           name="description"
-          rows="6"
-          placeholder="Deneyimlerinizi, teslimat sürenizi ve sağladığınız kaliteyi detaylıca anlatın..."
+          rows="5"
+          placeholder="Deneyimlerinizi ve hizmetinizin kapsamını detaylıca anlatın (Min 20 karakter)..."
           value={formData.description}
           onChange={handleChange}
         ></textarea>
         {errors.description && (
           <small style={{ color: "red" }}>{errors.description}</small>
         )}
+        <small
+          style={{
+            color: "#888",
+            display: "block",
+            textAlign: "right",
+            marginTop: "5px",
+          }}
+        >
+          {formData.description.length} / 20 karakter (Min)
+        </small>
       </div>
 
-      <div style={{ display: "flex", gap: "20px" }}>
-        <div className="form-group" style={{ flex: 1 }}>
+      {/* 3'LÜ IZGARA: DENEYİM, FİYAT, HİZMET TÜRÜ */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+          gap: "20px",
+        }}
+      >
+        {/* DENEYİM (Enum: 1,2,3,4,5) */}
+        <div className="form-group">
+          <label>Deneyim (Yıl)</label>
+          <select
+            className="form-control"
+            name="experienceLevel"
+            value={formData.experienceLevel}
+            onChange={handleChange}
+          >
+            <option value={1}>0-1 Yıl</option>
+            <option value={2}>1-3 Yıl</option>
+            <option value={3}>3-5 Yıl</option>
+            <option value={4}>5-10 Yıl</option>
+            <option value={5}>10+ Yıl</option>
+          </select>
+        </div>
+
+        {/* HİZMET TÜRÜ (Enum: 1,2,3) */}
+        <div className="form-group">
+          <label>Hizmet Türü</label>
+          <select
+            className="form-control"
+            name="serviceType"
+            value={formData.serviceType}
+            onChange={handleChange}
+          >
+            <option value={1}>🏠 Sadece Online</option>
+            <option value={2}>🤝 Yüz Yüze</option>
+            <option value={3}>🌍 Online + Yüz Yüze</option>
+          </select>
+        </div>
+
+        {/* FİYAT */}
+        <div className="form-group">
           <label>
-            Fiyat <span className="required">*</span>
+            Fiyat (TL) <span className="required">*</span>
           </label>
-          <div style={{ display: "flex" }}>
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <span
+              style={{
+                padding: "0 10px",
+                background: "#f4f4f4",
+                border: "1px solid #ddd",
+                borderRadius: "6px 0 0 6px",
+                height: "42px",
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
+              ₺
+            </span>
             <input
               type="number"
               className="form-control"
               name="price"
-              placeholder="Örn: 250"
+              min="1"
+              placeholder="Örn: 500"
               value={formData.price}
               onChange={handleChange}
-              style={{ borderRadius: "6px 0 0 6px" }}
+              style={{ borderRadius: "0 6px 6px 0", borderLeft: "none" }}
             />
-            <select
-              className="form-control"
-              name="currency"
-              value={formData.currency}
-              onChange={handleChange}
-              style={{
-                width: "80px",
-                borderRadius: "0 6px 6px 0",
-                borderLeft: "none",
-              }}
-            >
-              <option value="TL">TL</option>
-              <option value="USD">USD</option>
-              <option value="EUR">EUR</option>
-            </select>
           </div>
           {errors.price && (
             <small style={{ color: "red" }}>{errors.price}</small>
           )}
-        </div>
-
-        <div className="form-group" style={{ flex: 1 }}>
-          <label>Hizmet Yeri</label>
-          <select
-            className="form-control"
-            name="location"
-            value={formData.location}
-            onChange={handleChange}
-          >
-            <option value="Online">Sadece Online (Uzaktan)</option>
-            <option value="Yüz Yüze">Yüz Yüze (Bölgesel)</option>
-            <option value="Hibrit">Hibrit (Fark Etmez)</option>
-          </select>
         </div>
       </div>
     </div>
   );
 
   const renderStep3 = () => (
-    <div className="ad-form-content">
-      <h3 style={{ marginBottom: "10px" }}>İlanınız için Fotoğraf Seçin</h3>
-      <p style={{ fontSize: "14px", color: "#666", marginBottom: "20px" }}>
-        Sertifikalarınızı, CV'nizi veya sizi profesyonel yansıtan görselleri
-        yükleyerek müşterilerin güvenini kazanın.
+    <div
+      className="ad-form-content"
+      style={{ textAlign: "center", padding: "40px 20px" }}
+    >
+      <h3 style={{ marginBottom: "15px", color: "#28a745" }}>
+        🎉 Harika! İlanınız neredeyse hazır.
+      </h3>
+      <p style={{ color: "#555", marginBottom: "30px", fontSize: "16px" }}>
+        Doldurduğunuz tüm bilgiler taslak olarak kaydedildi. Müşterilerin
+        ilanınızı görüp satın alabilmesi için <strong>"İlanı Yayınla"</strong>{" "}
+        butonuna basmanız yeterlidir.
       </p>
-
-      <label className="photo-upload-box">
-        <input
-          type="file"
-          multiple
-          accept="image/*"
-          style={{ display: "none" }}
-          onChange={handlePhotoUpload}
-        />
-        <div style={{ fontSize: "40px", color: "#007bff" }}>📷</div>
-        <strong
-          style={{ color: "#007bff", display: "block", marginTop: "10px" }}
-        >
-          Bilgisayardan Fotoğraf Ekle
-        </strong>
-        <p style={{ color: "#888", fontSize: "12px" }}>veya sürükle bırak</p>
-      </label>
-
-      <div style={{ fontSize: "12px", color: "#888", marginTop: "10px" }}>
-        Eklediğiniz Fotoğraf Adedi: {formData.photos.length} / 10
-      </div>
-
-      {formData.photoPreviews.length > 0 && (
-        <div className="uploaded-photos">
-          {formData.photoPreviews.map((src, index) => (
-            <img
-              key={index}
-              src={src}
-              alt={`Yüklenen ${index + 1}`}
-              className="photo-preview"
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-
-  const renderStep4 = () => (
-    <div className="ad-form-content">
-      <h3 style={{ marginBottom: "20px" }}>Size nasıl ulaşılsın?</h3>
-
-      <div style={{ display: "flex", gap: "20px", marginBottom: "20px" }}>
-        <label
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            cursor: "pointer",
-          }}
-        >
-          <input
-            type="radio"
-            name="contactPreference"
-            value="telefon"
-            checked={formData.contactPreference === "telefon"}
-            onChange={handleChange}
-          />
-          Telefon numaralarım ile
-        </label>
-        <label
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            cursor: "pointer",
-          }}
-        >
-          <input
-            type="radio"
-            name="contactPreference"
-            value="mesaj"
-            checked={formData.contactPreference === "mesaj"}
-            onChange={handleChange}
-          />
-          Sadece Site İçi Mesajlar ile
-        </label>
-      </div>
 
       <div
         style={{
+          background: "#f9f9f9",
           padding: "20px",
-          border: "1px solid #ddd",
           borderRadius: "8px",
-          marginBottom: "30px",
-          background: "#fafafa",
+          textAlign: "left",
+          display: "inline-block",
+          maxWidth: "500px",
+          width: "100%",
         }}
       >
-        <div
+        <h4
           style={{
-            display: "flex",
-            justifyContent: "space-between",
-            marginBottom: "15px",
-            borderBottom: "1px solid #eee",
+            borderBottom: "1px solid #ddd",
             paddingBottom: "10px",
+            marginBottom: "15px",
           }}
         >
-          <span style={{ color: "#555" }}>İlanınızda Görünecek İsim:</span>
-          <strong>Profilinizdeki İsim Soyisim</strong>
-        </div>
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <span style={{ color: "#555" }}>Telefon (Eğer izin verirseniz):</span>
-          <strong>Sistemde Kayıtlı Telefonunuz</strong>
-        </div>
-      </div>
-
-      <div className="form-group">
-        <label
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-            cursor: "pointer",
-          }}
-        >
-          <input
-            type="checkbox"
-            name="agreedToTerms"
-            checked={formData.agreedToTerms}
-            onChange={handleChange}
-            style={{ width: "18px", height: "18px" }}
-          />
-          <span>
-            İlan verme kurallarını okudum, kabul ediyorum.{" "}
-            <span className="required">*</span>
-          </span>
-        </label>
-        {errors.agreedToTerms && (
-          <small style={{ color: "red", display: "block", marginTop: "5px" }}>
-            {errors.agreedToTerms}
-          </small>
-        )}
+          İlan Özeti
+        </h4>
+        <p>
+          <strong>Başlık:</strong> {formData.title}
+        </p>
+        <p>
+          <strong>Fiyat:</strong> {formData.price} ₺
+        </p>
+        <p>
+          <strong>Hizmet:</strong>{" "}
+          {formData.serviceType === 1
+            ? "Online"
+            : formData.serviceType === 2
+              ? "Yüz Yüze"
+              : "Online & Yüz Yüze"}
+        </p>
       </div>
     </div>
   );
 
+  if (loadingInitial) {
+    return (
+      <div
+        className="ad-creation-container"
+        style={{ textAlign: "center", padding: "50px" }}
+      >
+        Yükleniyor... Diller ve Şehirler alınıyor.
+      </div>
+    );
+  }
+
   return (
     <div className="ad-creation-container">
-      <h2 className="ad-creation-title">Yeni İlan Ekle</h2>
+      <h2 className="ad-creation-title">Yeni İlan Oluştur</h2>
 
       {/* STEPPER HEADER */}
       <div className="stepper-container">
@@ -406,9 +469,7 @@ const AdCreationWizard = () => {
           return (
             <div
               key={step.id}
-              className={`step-item ${isActive ? "active" : ""} ${
-                isCompleted ? "completed" : ""
-              }`}
+              className={`step-item ${isActive ? "active" : ""} ${isCompleted ? "completed" : ""}`}
             >
               <div className="step-number">{isCompleted ? "✓" : step.id}</div>
               <div className="step-label">{step.label}</div>
@@ -422,7 +483,6 @@ const AdCreationWizard = () => {
         {currentStep === 1 && renderStep1()}
         {currentStep === 2 && renderStep2()}
         {currentStep === 3 && renderStep3()}
-        {currentStep === 4 && renderStep4()}
       </div>
 
       {/* FOOTER BUTTONS */}
@@ -430,7 +490,7 @@ const AdCreationWizard = () => {
         <button
           className="btn-wizard btn-prev"
           onClick={prevStep}
-          disabled={currentStep === 1}
+          disabled={currentStep === 1 || isSubmitting}
           style={{ visibility: currentStep === 1 ? "hidden" : "visible" }}
         >
           Geri
@@ -440,8 +500,12 @@ const AdCreationWizard = () => {
             Devam Et
           </button>
         ) : (
-          <button className="btn-wizard btn-submit" onClick={handleSubmit}>
-            İlanı Yayınla
+          <button
+            className="btn-wizard btn-submit"
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? "Yayınlanıyor..." : "İlanı Yayınla"}
           </button>
         )}
       </div>

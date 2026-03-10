@@ -7,9 +7,16 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "http://localhost:5124",
+        target: "https://localhost:7038", // Backend HTTPS portu
         changeOrigin: true,
-        secure: false, // Localhost SSL sertifika hatalarını yok sayar
+        secure: false, // Localhost self-signed SSL'i kabul et
+        followRedirects: false, // HTTP→HTTPS redirect'i proxy'de takip etme
+      },
+      "/chatHub": {
+        target: "https://localhost:7038", // SignalR Hub
+        ws: true, // WebSocket desteği
+        changeOrigin: true,
+        secure: false,
       },
     },
   },

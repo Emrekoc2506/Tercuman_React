@@ -25,7 +25,13 @@ const CustomerDashboard = () => {
         setFavorites(res.data.data || []);
       }
     } catch (error) {
-      console.error("Favoriler yüklenirken hata:", error);
+      if (error.response && error.response.status === 404) {
+        console.warn(
+          "Favoriler henüz backend tarafından desteklenmiyor (404).",
+        );
+      } else {
+        console.error("Favoriler yüklenirken hata:", error);
+      }
     } finally {
       setLoading(false);
     }

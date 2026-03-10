@@ -127,6 +127,32 @@ export const refreshToken = (token) =>
 export const getTranslators = (params) =>
   api.get("/public/translators", { params });
 
+// Sayfalı ilan listesi getirir
+// Endpoint: GET /Listings
+export const getListings = (page = 1, pageSize = 10, sort = null) =>
+  api.get("/Listings", { params: { page, pageSize, sort } });
+
+// İlanları filtreler (Dil, Şehir, Fiyat, Hizmet Türü vb.)
+// Endpoint: GET /Listings/filter
+export const filterListings = (filterParams) =>
+  api.get("/Listings/filter", { params: filterParams });
+
+// Tüm dilleri getirir (Dropdown için)
+// Endpoint: GET /Languages
+export const getLanguages = () => api.get("/Languages");
+
+// Tüm şehirleri getirir (Dropdown için)
+// Endpoint: GET /Cities
+export const getCities = () => api.get("/Cities");
+
+// Belirli bir ilanın detayını getirir
+// Endpoint: GET /Listings/{id}
+export const getListingById = (id) => api.get(`/Listings/${id}`);
+
+// Yeni ilan oluşturur (Çevirmen panelinden)
+// Endpoint: POST /Listings
+export const createListing = (data) => api.post("/Listings", data);
+
 // Çevirmene mesaj gönderme (Müşteri veya ziyaretçi gönderir).
 // Endpoint: POST /public/contact
 export const sendContactMessage = (data) => api.post("/public/contact", data);

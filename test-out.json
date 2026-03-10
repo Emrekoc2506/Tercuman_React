@@ -1,0 +1,20 @@
+{
+  "login": {
+    "success": false,
+    "message": "Invalid column name 'CreatedAt'.\r\nInvalid column name 'Gender'.\r\nInvalid column name 'Name'."
+  },
+  "register": {
+    "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+    "title": "One or more validation errors occurred.",
+    "status": 400,
+    "errors": {
+      "dto": [
+        "The dto field is required."
+      ],
+      "$.gender": [
+        "The JSON value could not be converted to Tercuman.Domin.Enums.Gender. Path: $.gender | LineNumber: 0 | BytePositionInLine: 89."
+      ]
+    },
+    "traceId": "00-90b93abc213dbe92d477685c7e2bf7e9-b44d6117672ade9f-00"
+  }
+}
