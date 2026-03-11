@@ -78,16 +78,22 @@ const ListingDetail = () => {
 
   // Güvenlik ve Fallback Kontrolleri (Backend boş gönderirse)
   const userFullName =
-    listing.translatorName || listing.userFullName || "Çevirmen Üye";
+    listing.translatorName ||
+    listing.userFullName ||
+    listing.name ||
+    "Çevirmen Üye";
   const initials = userFullName.substring(0, 2).toUpperCase();
   const photoUrl =
     listing.images && listing.images.length > 0
       ? listing.images[0]
       : `https://ui-avatars.com/api/?name=${encodeURIComponent(userFullName)}&background=random`;
 
-  const listingNo = listing.id
-    ? `TRC-${listing.id.substring(0, 8).toUpperCase()}`
-    : "Bilinmiyor";
+  const listingNo =
+    listing.listingNo !== undefined
+      ? `TRC-${listing.listingNo}`
+      : listing.id
+        ? `TRC-${listing.id.substring(0, 8).toUpperCase()}`
+        : "Bilinmiyor";
   // Tarih: backend "createdAt" alanı gönderiliyor
   const rawDate = listing.createdAt || listing.createdDate;
   const createdAt =

@@ -19,7 +19,22 @@ const ChatModal = ({ receiverId, receiverName, onClose }) => {
   useEffect(() => {
     let isMounted = true;
 
-    // SignalR bağlantısını başlat ve gelen mesajları dinle
+    // TODO: Gerçek senaryoda backend 'GET /api/Messages/history/{receiverId}' endpointi buraya bağlanacak.
+    // Şimdilik UI testleri için modal açıldığında dummy bir geçmiş (history) yüklüyoruz.
+    const loadMessageHistory = async () => {
+      // await some dummy delay
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      if (isMounted) {
+        setMessages([
+          {
+            senderId: receiverId,
+            text: "Merhaba, size nasıl yardımcı olabilirim?",
+            timestamp: new Date(Date.now() - 3600000).toISOString(),
+          },
+        ]);
+      }
+    };
+
     const setupChat = async () => {
       try {
         await chatService.startConnection();
@@ -30,14 +45,13 @@ const ChatModal = ({ receiverId, receiverName, onClose }) => {
     };
 
     const handleReceiveMessage = (senderId, text, timestamp) => {
-      // Sadece ilgili kişiden (veya genel test için) gelen mesajları state'e ekle
-      // Gerçek senaryoda: if (senderId === receiverId) ...
       setMessages((prev) => [
         ...prev,
         { senderId, text, timestamp: timestamp || new Date().toISOString() },
       ]);
     };
 
+    loadMessageHistory();
     setupChat();
     chatService.onMessageReceived(handleReceiveMessage);
 

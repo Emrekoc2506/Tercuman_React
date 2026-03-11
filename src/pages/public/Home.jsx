@@ -101,10 +101,10 @@ const Home = () => {
         // Beklenen response.data -> { success: true, data: Array(2), totalCount: 2, ... }
         const mappedTranslators = (response.data.data || []).map((listing) => ({
           id: listing.userId, // Favori işlemleri için User ID gerekli
-          listingId: listing.id, // İlanın kendi ID'si
-          fullName: listing.translatorName || "Çevirmen", // Backend'den translatorName gelmeli
+          listingId: listing.id, // İlanın kendi ID'si (Detay sayfasına gitmek için)
+          fullName: listing.translatorName || listing.name || "Çevirmen",
           bio: listing.description || "",
-          listingNo: listing.id, // İlan No olarak ID kullanılıyor
+          listingNo: listing.listingNo || listing.id, // Artık backend'den ListingNo geliyor
           createdAt: (() => {
             const raw = listing.createdAt || listing.createdDate;
             if (!raw) return "Belirtilmedi";
@@ -200,9 +200,10 @@ const Home = () => {
         const mappedTranslators = (response.data.data || []).map((listing) => ({
           id: listing.userId,
           listingId: listing.id,
-          fullName: listing.translatorName || "Çevirmen",
+          fullName: listing.translatorName || listing.name || "Çevirmen",
           bio: listing.description || "",
-          listingNo: listing.id,
+          listingNo:
+            listing.listingNo !== undefined ? listing.listingNo : listing.id,
           createdAt: (() => {
             const raw = listing.createdAt || listing.createdDate;
             if (!raw) return "Belirtilmedi";
