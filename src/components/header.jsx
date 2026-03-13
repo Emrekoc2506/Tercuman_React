@@ -12,8 +12,8 @@ function Header() {
   const navigate = useNavigate();
 
   // Kullanıcının giriş yapıp yapmadığını kontrol ediyoruz.
+  // Kullanıcının giriş yapıp yapmadığını kontrol ediyoruz.
   const token = localStorage.getItem("token");
-  const userRole = localStorage.getItem("role");
 
   // ==========================================
   // BİLDİRİM İŞLEMLERİ STATE & FONKSİYONLAR
@@ -68,7 +68,6 @@ function Header() {
   // ==========================================
   const handleLogout = () => {
     localStorage.removeItem("token");
-    localStorage.removeItem("role");
     navigate("/login"); // Çıkış yapınca giriş sayfasına at
     window.location.reload(); // Header'ın güncellenmesi için sayfayı yenile (Basit çözüm)
   };
@@ -313,30 +312,8 @@ function Header() {
             // Giriş YAPMIŞ kullanıcılar için:
             <>
               <button
-                onClick={() => navigate("/user/ad-create")}
-                className="btn-modern"
-                style={{
-                  fontSize: "0.85rem",
-                  padding: "8px 16px",
-                  background: "linear-gradient(135deg, #17a2b8, #138496)", // Info Blue color
-                  marginRight: "5px",
-                }}
-              >
-                İlan Yükle
-              </button>
-              <button
                 onClick={() => {
-                  const path = getDashboardPath();
-                  console.log("Aktif Kullanıcı Rolü (Tarayıcı):", userRole); // Debug
-                  console.log("Panel Yönlendirme Rotası:", path); // Debug
-
-                  if (path !== "/") {
-                    navigate(path);
-                  } else {
-                    alert(
-                      `Panel Yönlendirme Hatası!\nHesabınızla (${userRole}) eşleşen geçerli bir panel (Admin/Customer/Translator) bulunamadı.`,
-                    );
-                  }
+                  navigate("/user/dashboard");
                 }}
                 className="btn-modern"
                 style={{
