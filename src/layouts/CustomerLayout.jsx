@@ -1,62 +1,69 @@
 import React from "react";
-import { Outlet, Link, useNavigate } from "react-router-dom";
-
-// ==============================================================================
-// USER LAYOUT (KULLANICI TEMASI)
-// ==============================================================================
-// Bu düzen tüm kayıtlı kullanıcılar için ortak panel görünümünü temsil eder.
+import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
+import { 
+  FaTachometerAlt, 
+  FaUser, 
+  FaEnvelope, 
+  FaLanguage, 
+  FaPlusCircle, 
+  FaSignOutAlt,
+  FaHome
+} from "react-icons/fa";
+import "../css/dashboard_modern.css";
 
 const CustomerLayout = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // Çıkış yapma fonksiyonu
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("role");
     navigate("/login");
   };
 
+  const navItems = [
+    { path: "/", label: "Ana Sayfaya Dön", icon: <FaHome /> },
+    { path: "/user/dashboard", label: "Gösterge Paneli", icon: <FaTachometerAlt /> },
+    { path: "/user/profile", label: "Profilim", icon: <FaUser /> },
+    { path: "/user/messages", label: "Mesajlarım", icon: <FaEnvelope /> },
+    { path: "/user/ad-create", label: "İlan Oluştur", icon: <FaPlusCircle /> },
+  ];
+
   return (
-    <div style={{ display: "flex", minHeight: "100vh" }}>
-      {/* SOL MENÜ (SIDEBAR) */}
-      <aside style={{ width: "250px", background: "#f4f4f4", padding: "20px" }}>
-        <h3>Kullanıcı Paneli</h3>
-        <ul style={{ listStyle: "none", padding: 0 }}>
-          <li style={{ margin: "10px 0" }}>
-            <Link to="/user/dashboard">Gösterge Paneli</Link>
-          </li>
-          <li style={{ margin: "10px 0" }}>
-            <Link to="/user/profile">Profilim</Link>
-          </li>
-          <li style={{ margin: "10px 0" }}>
-            <Link to="/user/messages">Mesajlarım</Link>
-          </li>
-          <li style={{ margin: "10px 0" }}>
-            <Link to="/user/languages">Dillerim</Link>
-          </li>
-          <li style={{ margin: "10px 0" }}>
-            <Link to="/user/ad-create">İlan Oluştur</Link>
-          </li>
-          <li style={{ marginTop: "20px" }}>
-            <button
-              onClick={handleLogout}
-              style={{
-                color: "red",
-                cursor: "pointer",
-                background: "none",
-                border: "none",
-                padding: 0,
-                font: "inherit",
-              }}
-            >
-              Çıkış Yap
-            </button>
-          </li>
-        </ul>
+    <div className="dashboard-container">
+      {/* MODERN SIDEBAR */}
+      <aside className="modern-sidebar">
+        <div className="sidebar-logo">
+          <FaHome style={{ color: "var(--primary-color)" }} />
+          <span>MiftahTEA</span>
+        </div>
+
+        <nav className="sidebar-nav">
+          <ul style={{ listStyle: "none", padding: 0 }}>
+            {navItems.map((item) => (
+              <li key={item.path} className="nav-item">
+                <Link
+                  to={item.path}
+                  className={`nav-link ${location.pathname === item.path ? "active" : ""}`}
+                >
+                  {item.icon}
+                  <span>{item.label}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
+        <div className="sidebar-footer">
+          <button onClick={handleLogout} className="nav-link" style={{ border: "none", background: "none", width: "100%", cursor: "pointer", color: "#ef4444" }}>
+            <FaSignOutAlt />
+            <span>Çıkış Yap</span>
+          </button>
+        </div>
       </aside>
 
-      {/* SAĞ İÇERİK ALANI */}
-      <main style={{ flex: 1, padding: "20px" }}>
+      {/* MAIN CONTENT AREA */}
+      <main className="main-content">
         <Outlet />
       </main>
     </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getListingById, getLanguages } from "../../services/api";
 import ChatModal from "../../components/ChatModal";
+import { FaChevronLeft, FaChevronRight, FaStar, FaShieldAlt } from "react-icons/fa";
 
 const ListingDetail = () => {
   const { id } = useParams();
@@ -12,6 +13,7 @@ const ListingDetail = () => {
   const [showChatModal, setShowChatModal] = useState(false);
   const [activeTab, setActiveTab] = useState("detaylar"); // detaylar | konum
   const [languageMap, setLanguageMap] = useState({});
+  const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
     // Tüm dilleri backend'den çekip { id: isim } map'i oluşturur
@@ -44,6 +46,27 @@ const ListingDetail = () => {
       fetchLanguages().then(() => fetchDetail());
     }
   }, [id]);
+
+  // Auto-slide logic
+  useEffect(() => {
+    if (!listing || !listing.images || listing.images.length <= 1) return;
+
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev === listing.images.length - 1 ? 0 : prev + 1));
+    }, 5000); // 5 seconds
+
+    return () => clearInterval(timer);
+  }, [listing]);
+
+  const nextSlide = (e) => {
+    e.stopPropagation();
+    setCurrentSlide((prev) => (prev === listing.images.length - 1 ? 0 : prev + 1));
+  };
+
+  const prevSlide = (e) => {
+    e.stopPropagation();
+    setCurrentSlide((prev) => (prev === 0 ? listing.images.length - 1 : prev - 1));
+  };
 
   if (loading) {
     return (
@@ -138,6 +161,10 @@ const ListingDetail = () => {
   const phone = listing.phone || listing.userPhone || "Telefon Belirtilmemiş";
   const category = listing.category || "Genel Çeviri / Özel Ders";
 
+  const images = (listing.images && listing.images.length > 0) 
+    ? listing.images 
+    : [`https://ui-avatars.com/api/?name=${encodeURIComponent(userFullName)}&background=random`];
+
   // Hizmet Türü: backend string veya sayı gönderebilir
   const mapServiceType = (v) => {
     if (v === 1 || v === "Online" || v === "online")
@@ -213,27 +240,119 @@ const ListingDetail = () => {
         >
           {/* SOL KOLON: Fotoğraf ve Alt Sekmeler */}
           <div>
-            {/* Fotoğraf Kutusu */}
+            {/* Carousel Kutusu */}
             <div
+              className="image-carousel-container"
               style={{
-                backgroundColor: "#000",
+                backgroundColor: "#f1f5f9",
                 height: "450px",
                 display: "flex",
                 justifyContent: "center",
                 alignItems: "center",
-                borderRadius: "8px",
+                borderRadius: "12px",
                 overflow: "hidden",
+                position: "relative",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.05)"
               }}
             >
-              <img
-                src={photoUrl}
-                alt="İlan Görseli"
-                style={{
-                  maxHeight: "100%",
-                  maxWidth: "100%",
-                  objectFit: "contain",
-                }}
-              />
+              {images.map((img, idx) => (
+                <div 
+                  key={idx}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    height: "100%",
+                    opacity: currentSlide === idx ? 1 : 0,
+                    transition: "opacity 0.5s ease-in-out",
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    background: "#000"
+                  }}
+                >
+                  <img
+                    src={img}
+                    alt={`Listing Slide ${idx}`}
+                    style={{
+                      maxHeight: "100%",
+                      maxWidth: "100%",
+                      objectFit: "contain",
+                    }}
+                  />
+                </div>
+              ))}
+
+              {/* Controls */}
+              {images.length > 1 && (
+                <>
+                  <button 
+                    onClick={prevSlide}
+                    style={{
+                      position: "absolute",
+                      left: "15px",
+                      background: "rgba(255,255,255,0.7)",
+                      border: "none",
+                      width: "40px",
+                      height: "40px",
+                      borderRadius: "50%",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      zIndex: 10,
+                      backdropFilter: "blur(4px)"
+                    }}
+                  >
+                    <FaChevronLeft color="#333" />
+                  </button>
+                  <button 
+                    onClick={nextSlide}
+                    style={{
+                      position: "absolute",
+                      right: "15px",
+                      background: "rgba(255,255,255,0.7)",
+                      border: "none",
+                      width: "40px",
+                      height: "40px",
+                      borderRadius: "50%",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      zIndex: 10,
+                      backdropFilter: "blur(4px)"
+                    }}
+                  >
+                    <FaChevronRight color="#333" />
+                  </button>
+
+                  {/* Dots */}
+                  <div style={{
+                    position: "absolute",
+                    bottom: "20px",
+                    display: "flex",
+                    gap: "8px",
+                    zIndex: 10
+                  }}>
+                    {images.map((_, idx) => (
+                      <div 
+                        key={idx}
+                        onClick={() => setCurrentSlide(idx)}
+                        style={{
+                          width: "8px",
+                          height: "8px",
+                          borderRadius: "50%",
+                          background: currentSlide === idx ? "#fff" : "rgba(255,255,255,0.5)",
+                          cursor: "pointer",
+                          transition: "all 0.3s"
+                        }}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Alt Sekmeler (İlan Detayları / Konumu) */}

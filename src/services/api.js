@@ -50,7 +50,7 @@ api.interceptors.response.use(
         // NOT: Kendi 'api' instance'ımız yerine saf axios kullanarak atıyoruz ki, 401 hatası alırsa tekrar bu interceptor'a düşüp döngüye girmesin!
         const res = await axios.post(
           "/api/auth/refresh",
-          `"${currentRefreshToken}"`, // Backend string beklediği için tırnak içinde gönderiyoruz (C# kuralı)
+          { refreshToken: currentRefreshToken },
           {
             headers: { "Content-Type": "application/json" },
           },
@@ -180,7 +180,12 @@ export const getTranslatorProfile = () => api.get("/translator/profile");
 // Çevirmenin kendi profil bilgilerini oluşturması veya güncellemesi.
 // Endpoint: PUT /translator/profile
 export const updateTranslatorProfile = (data) =>
-  api.put("/translator/profile", data, {
+  api.put("/translator/profile", data);
+
+// Profil fotoğrafı yükleme.
+// Endpoint: POST /translator/profile/image
+export const uploadProfileImage = (formData) =>
+  api.post("/translator/profile/image", formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
 
@@ -189,19 +194,23 @@ export const updateTranslatorProfile = (data) =>
 export const toggleTranslatorProfileStatus = () =>
   api.put("/translator/profile/toggle");
 
+// İlana fotoğraf yükleme.
+// Endpoint: POST /Listings/{id}/images
+export const uploadListingImages = (listingId, formData) =>
+  api.post(`/Listings/${listingId}/images`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+
 // ---------------------------------------------------------
 // YENİ EKLENEN BİLDİRİM İŞLEMLERİ (4️⃣ Bildirim Sistemi)
 // ---------------------------------------------------------
 
-// Çevirmene gelen tüm bildirimleri (mesaj, favori vs.) getirmesi.
-// Endpoint: GET /translator/notifications
-export const getTranslatorNotifications = () =>
-  api.get("/translator/notifications");
+// Endpoint: GET /Notifications
+export const getTranslatorNotifications = () => api.get("/Notifications");
 
-// Çevirmenin seçtiği veya gördüğü bir bildirimi "Okundu" olarak işaretlemesi.
-// Endpoint: PUT /translator/notifications/{id}/read
+// Endpoint: PUT /Notifications/{id}/read
 export const markNotificationAsRead = (id) =>
-  api.put(`/translator/notifications/${id}/read`);
+  api.put(`/Notifications/${id}/read`);
 
 // ---------------------------------------------------------
 // DİL İŞLEMLERİ

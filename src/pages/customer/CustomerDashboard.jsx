@@ -2,14 +2,22 @@ import React, { useState, useEffect } from "react";
 import {
   getCustomerFavorites,
   removeFavoriteTranslator,
-} from "../../services/api"; // Eklediğimiz servisler
+} from "../../services/api";
 import { Link } from "react-router-dom";
+import { 
+  FaStar, 
+  FaClipboardList, 
+  FaCheckCircle, 
+  FaEnvelopeOpen,
+  FaHeart,
+  FaArrowRight,
+  FaTrashAlt
+} from "react-icons/fa";
 
 const CustomerDashboard = () => {
   const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Sayfa yüklendiğinde favori çevirmenleri API'den getirir
   useEffect(() => {
     fetchFavorites();
   }, []);
@@ -17,174 +25,161 @@ const CustomerDashboard = () => {
   const fetchFavorites = async () => {
     try {
       setLoading(true);
-      // Backend'deki GET /api/customer/favorites endpoint'ine istek atıyoruz
       const res = await getCustomerFavorites();
-
       if (res.data.success) {
-        // Favori listesini state'e atıyoruz
         setFavorites(res.data.data || []);
       }
     } catch (error) {
-      if (error.response && error.response.status === 404) {
-        console.warn(
-          "Favoriler henüz backend tarafından desteklenmiyor (404).",
-        );
-      } else {
-        console.error("Favoriler yüklenirken hata:", error);
-      }
+      console.error("Favoriler yüklenirken hata:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Favorilerden Çıkarma (Kalp ikonunu / butonu tıklayınca)
   const handleRemoveFavorite = async (translatorId) => {
-    // Silme teyidi al
-    if (
-      !window.confirm(
-        "Bu çevirmeni favorilerden çıkarmak istediğinize emin misiniz?",
-      )
-    )
+    if (!window.confirm("Bu çevirmeni favorilerden çıkarmak istediğinize emin misiniz?"))
       return;
 
     try {
-      // Backend'de DELETE /api/customer/favorite/{id} işlemini çalıştır
       await removeFavoriteTranslator(translatorId);
-
-      // UI tarafında listeyi güncelle (ilgili ID'yi kaldır)
-      setFavorites((prev) =>
-        prev.filter((fav) => fav.translatorId !== translatorId),
-      );
-
-      alert("Çevirmen favorilerinizden çıkarıldı.");
+      setFavorites((prev) => prev.filter((fav) => fav.translatorId !== translatorId));
     } catch (error) {
       alert("Çıkarma işlemi sırasında bir hata oluştu.");
     }
   };
 
   return (
-    <div style={{ padding: "20px" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <h2>Müşteri Paneline Hoş Geldiniz</h2>
-        <Link
-          to="/"
-          className="btn-modern"
-          style={{
-            padding: "8px 16px",
-            fontSize: "0.9rem",
+    <div>
+      {/* WELCOME BANNER */}
+      <div className="welcome-banner">
+        <h1>Hoş Geldiniz, 👋</h1>
+        <p>MiftahTEA uzmanlarıyla çeviri süreçlerinizi kolayca yönetin.</p>
+        <Link 
+          to="/" 
+          style={{ 
+            marginTop: "20px", 
+            display: "inline-flex", 
+            alignItems: "center", 
+            gap: "8px",
+            color: "white",
+            textDecoration: "none",
+            fontWeight: "600",
+            fontSize: "0.9rem"
           }}
         >
-          Anasayfaya Dön
+          Yeni Çevirmen Keşfet <FaArrowRight fontSize="12px" />
         </Link>
       </div>
-      <p>
-        Bu panel üzerinden ileride çeviri siparişlerinizi, profil bilgilerinizi
-        ve geçmiş işlemlerinizi yönetebileceksiniz.
-      </p>
 
-      {/* Sipariş vb. özet bilgiler alanı (Mevcut yapı korundu) */}
-      <div
-        className="glass-panel modern-card-hover"
-        style={{
-          marginTop: "20px",
-          padding: "20px",
-          border: "none", // glass-panel kullanacak
-          borderRadius: "8px",
-          marginBottom: "30px", // Favori kısmı ile arasına biraz boşluk açıldı
-        }}
-      >
-        <h4>Özet Bilgiler</h4>
-        <ul>
-          <li>Aktif Siparişleriniz: 0</li>
-          <li>Tamamlanan Siparişleriniz: 0</li>
-          <li>Okunmamış Mesajlarınız: 0</li>
-          {/* Favori sayısını da özet kısmına yazdır */}
-          <li>Favori Çevirmenleriniz: {favorites.length}</li>
-        </ul>
-      </div>
-
-      <hr />
-
-      {/* ---------------------------------------------------- */}
-      {/* 3️⃣ YENİ EKLENEN FAVORİ SİSTEMİ BÖLÜMÜ                */}
-      {/* ---------------------------------------------------- */}
-      <div>
-        <h3>Favori Çevirmenlerim</h3>
-        {loading ? (
-          <p>Yükleniyor...</p>
-        ) : favorites.length === 0 ? (
-          <p style={{ color: "#777", fontStyle: "italic" }}>
-            Henüz favorinize eklediğiniz bir çevirmen bulunmuyor. Anasayfadan
-            kalp ikonuna tıklayarak favorilerinize çevirmen ekleyebilirsiniz.
-          </p>
-        ) : (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-              gap: "20px",
-              marginTop: "15px",
-            }}
-          >
-            {/* Favoriler dizisi üzerinde dönüyoruz */}
-            {favorites.map((fav) => (
-              <div
-                key={fav.id} // fav tablosunun kendi id'si
-                className="glass-panel modern-card-hover"
-                style={{
-                  border: "none", // glass-panel kullanacak
-                  borderRadius: "15px",
-                  padding: "20px",
-                  position: "relative", // İçindeki çarpı butonu için relative yaptık
-                }}
-              >
-                {/* Çıkarma Butonu (Sağ üstte 'X') */}
-                <button
-                  onClick={() => handleRemoveFavorite(fav.translatorId)} // Backend'e kullanıcının id'si gitmeli
-                  title="Favorilerden Çıkar"
-                  style={{
-                    position: "absolute",
-                    top: "10px",
-                    right: "10px",
-                    background: "transparent",
-                    color: "red",
-                    border: "none",
-                    cursor: "pointer",
-                    fontSize: "18px",
-                    fontWeight: "bold",
-                  }}
-                >
-                  X
-                </button>
-
-                {/* Çevirmen Bilgileri */}
-                {/* Backend DTO'sundan gelen bilgilere göre isim ve bio'yu yazıyoruz. 
-                    (Not: publicDTO içinde tam dönüyorsa ona göre kullanırız) */}
-                <h4
-                  style={{
-                    color: "#007BFF",
-                    margin: "0 0 10px 0",
-                    paddingRight: "25px",
-                  }}
-                >
-                  {fav.translatorName || `Çevirmen #${fav.translatorId}`}
-                </h4>
-
-                {/* İstenirse burada listeye giden link eklenebilir veya Modal açılabilir. */}
-                <p style={{ fontSize: "14px", color: "#555" }}>
-                  Bu çevirmeni anasayfada veya detay sayfasında bulabilirsiniz.
-                </p>
-              </div>
-            ))}
+      {/* STATS GRID */}
+      <div className="stats-grid">
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: "rgba(79, 70, 229, 0.1)", color: "var(--primary-color)" }}>
+            <FaClipboardList />
           </div>
-        )}
+          <div className="stat-info">
+            <h4>Aktif Siparişler</h4>
+            <div className="stat-value">0</div>
+          </div>
+        </div>
+        
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: "rgba(34, 197, 94, 0.1)", color: "#22c55e" }}>
+            <FaCheckCircle />
+          </div>
+          <div className="stat-info">
+            <h4>Tamamlanan</h4>
+            <div className="stat-value">0</div>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: "rgba(245, 158, 11, 0.1)", color: "#f59e0b" }}>
+            <FaEnvelopeOpen />
+          </div>
+          <div className="stat-info">
+            <h4>Mesajlar</h4>
+            <div className="stat-value">0</div>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: "rgba(239, 68, 68, 0.1)", color: "#ef4444" }}>
+            <FaHeart />
+          </div>
+          <div className="stat-info">
+            <h4>Favoriler</h4>
+            <div className="stat-value">{favorites.length}</div>
+          </div>
+        </div>
       </div>
+
+      {/* FAVORITES SECTION */}
+      <h3 className="section-title">
+        <FaStar style={{ color: "#f59e0b" }} /> Favori Çevirmenlerim
+      </h3>
+
+      {loading ? (
+        <div className="glass-panel" style={{ padding: "40px", textAlign: "center" }}>
+          <p>Yükleniyor...</p>
+        </div>
+      ) : favorites.length === 0 ? (
+        <div className="glass-panel" style={{ padding: "40px", textAlign: "center" }}>
+          <p style={{ color: "#64748b", fontStyle: "italic" }}>
+            Henüz favorinize eklediğiniz bir çevirmen bulunmuyor.
+          </p>
+        </div>
+      ) : (
+        <div className="fav-grid">
+          {favorites.map((fav) => (
+            <div key={fav.messageId || fav.translatorId} className="glass-panel fav-card modern-card-hover">
+              <button
+                className="remove-fav-btn"
+                onClick={() => handleRemoveFavorite(fav.translatorId)}
+              >
+                <FaTrashAlt />
+              </button>
+
+              <div style={{ display: "flex", gap: "15px", alignItems: "center" }}>
+                <div 
+                  style={{ 
+                    width: "50px", 
+                    height: "50px", 
+                    borderRadius: "50%", 
+                    background: "var(--primary-color)",
+                    color: "white",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "1.2rem",
+                    fontWeight: "700"
+                  }}
+                >
+                  {fav.translatorName?.charAt(0) || "T"}
+                </div>
+                <div>
+                  <h4 style={{ margin: 0, color: "#1e293b" }}>
+                    {fav.translatorName || "Uzman Çevirmen"}
+                  </h4>
+                  <span style={{ fontSize: "0.85rem", color: "#64748b" }}>Profesyonel Tercüman</span>
+                </div>
+              </div>
+              
+              <div style={{ marginTop: "20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                 <Link 
+                    to={`/listings/${fav.listingId || ""}`} 
+                    style={{ fontSize: "0.85rem", color: "var(--primary-color)", textDecoration: "none", fontWeight: "600" }}
+                  >
+                    Profili Görüntüle
+                  </Link>
+                  <button className="btn-modern" style={{ padding: "6px 12px", fontSize: "0.75rem", background: "#f1f5f9", color: "#334155", boxShadow: "none" }}>
+                    Mesaj Gönder
+                  </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

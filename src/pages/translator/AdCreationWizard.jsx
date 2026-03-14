@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { getLanguages, getCities, createListing } from "../../services/api";
+import { getLanguages, getCities, createListing, uploadListingImages } from "../../services/api";
+import { FaCamera, FaTimes, FaImage } from "react-icons/fa";
 import "../../css/adCreation.css";
 
 const AdCreationWizard = () => {
@@ -35,6 +36,8 @@ const AdCreationWizard = () => {
   // Hata mesajları
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState([]); // [File, File, ...]
+  const [previews, setPreviews] = useState([]); // [url, url, ...]
 
   // Sayfa ilk yüklendiğinde dilleri ve şehirleri çek
   useEffect(() => {
@@ -83,6 +86,32 @@ const AdCreationWizard = () => {
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: null }));
     }
+  };
+
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length + selectedFiles.length > 10) {
+      alert("En fazla 10 fotoğraf yükleyebilirsiniz.");
+      return;
+    }
+
+    const newFiles = [...selectedFiles, ...files];
+    setSelectedFiles(newFiles);
+
+    // Previews
+    const newPreviews = files.map(file => URL.createObjectURL(file));
+    setPreviews([...previews, ...newPreviews]);
+  };
+
+  const removeFile = (index) => {
+    const newFiles = [...selectedFiles];
+    newFiles.splice(index, 1);
+    setSelectedFiles(newFiles);
+
+    const newPreviews = [...previews];
+    URL.revokeObjectURL(newPreviews[index]);
+    newPreviews.splice(index, 1);
+    setPreviews(newPreviews);
   };
 
   // --- ADIM VİDALASYONLARI ---
@@ -165,6 +194,19 @@ const AdCreationWizard = () => {
       console.log("İlan Gönderiliyor:", payload);
 
       const response = await createListing(payload);
+      
+      // Backend'den ID'yi al
+      const listingData = response.data?.data || response.data;
+      const listingId = listingData?.id;
+
+      // Fotoğraflar varsa yükle
+      if (listingId && selectedFiles.length > 0) {
+        const imageFormData = new FormData();
+        selectedFiles.forEach(file => {
+          imageFormData.append("files", file);
+        });
+        await uploadListingImages(listingId, imageFormData);
+      }
 
       alert("İlanınız başarıyla oluşturuldu!");
       navigate("/user/dashboard"); // İlan oluşturulduktan sonra dashboarda yönlendir
@@ -388,6 +430,87 @@ const AdCreationWizard = () => {
           </div>
           {errors.price && (
             <small style={{ color: "red" }}>{errors.price}</small>
+          )}
+        </div>
+      </div>
+
+      {/* FOTOĞRAF YÜKLEME */}
+      <div className="form-group" style={{ marginTop: "25px" }}>
+        <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <FaImage /> İlan Fotoğrafları (Opsiyonel - Max 10)
+        </label>
+        <div 
+          className="image-upload-grid" 
+          style={{ 
+            display: "grid", 
+            gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", 
+            gap: "15px", 
+            marginTop: "10px",
+            padding: "20px",
+            border: "2px dashed #e2e8f0",
+            borderRadius: "12px",
+            background: "#f8fafc"
+          }}
+        >
+          {previews.map((url, index) => (
+            <div key={index} style={{ position: "relative", width: "100px", height: "100px" }}>
+              <img 
+                src={url} 
+                alt="preview" 
+                style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "8px" }} 
+              />
+              <button 
+                type="button" 
+                onClick={() => removeFile(index)}
+                style={{
+                  position: "absolute",
+                  top: "-8px",
+                  right: "-8px",
+                  background: "#ef4444",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "50%",
+                  width: "24px",
+                  height: "24px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: "0 2px 5px rgba(0,0,0,0.2)"
+                }}
+              >
+                <FaTimes size={12} />
+              </button>
+            </div>
+          ))}
+          
+          {selectedFiles.length < 10 && (
+            <label 
+              style={{ 
+                width: "100px", 
+                height: "100px", 
+                border: "2px dashed #cbd5e0", 
+                borderRadius: "8px", 
+                display: "flex", 
+                flexDirection: "column", 
+                alignItems: "center", 
+                justifyContent: "center", 
+                cursor: "pointer",
+                color: "#64748b",
+                fontSize: "0.8rem",
+                gap: "5px"
+              }}
+            >
+              <FaCamera size={20} />
+              Ekle
+              <input 
+                type="file" 
+                multiple 
+                accept="image/*" 
+                style={{ display: "none" }} 
+                onChange={handleFileChange} 
+              />
+            </label>
           )}
         </div>
       </div>

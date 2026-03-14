@@ -5,6 +5,7 @@ import {
   removeFavoriteTranslator,
   getCustomerFavorites,
   getLanguages, // Dil listesi için eklendi
+  getCities, // Şehir listesi için eklendi
   filterListings, // Filtre servisi
 } from "../../services/api"; // API servislerini içe aktar
 import ContactModal from "../../components/ContactModal"; // İletişim Modal bileşeni
@@ -45,6 +46,11 @@ const Home = () => {
     searchKeyword: "",
   });
 
+  // Şehir seçimi için ek state'ler
+  const [cities, setCities] = useState([]);
+  const [citySearch, setCitySearch] = useState("");
+  const [isCityOpen, setIsCityOpen] = useState(false);
+
   // O an giriş yapmış kullanıcının rolünü al (Kalp ikonunu sadece Müşteriye göstermek için)
   const userRole = localStorage.getItem("role"); // "Customer", "Translator" veya "Admin"
 
@@ -59,13 +65,26 @@ const Home = () => {
 
   // 1. Sayfa açıldığında çevirmenleri ve (eğer müşteri isek) favorilerimizi çekiyoruz
   useEffect(() => {
-    // Önce dil listesini çek, sonra ilanları yükle
-    fetchLanguages().then(() => fetchTranslators());
+    // Önce dil ve şehir listesini çek, sonra ilanları yükle
+    Promise.all([fetchLanguages(), fetchCities()]).then(() =>
+      fetchTranslators(),
+    );
 
     if (userRole === "Customer") {
       fetchFavorites();
     }
   }, [userRole]);
+
+  // Şehirleri backend'den çeken fonksiyon
+  const fetchCities = async () => {
+    try {
+      const res = await getCities();
+      const cityData = res.data?.data || res.data || [];
+      setCities(cityData);
+    } catch (err) {
+      console.error("Şehirler yüklenirken hata:", err);
+    }
+  };
 
   // Tüm dilleri backend'den çekip { id: isim } map'i oluşturur
   const fetchLanguages = async () => {
@@ -464,21 +483,142 @@ const Home = () => {
               >
                 Şehir
               </label>
-              <input
-                type="text"
-                name="city"
-                value={filterParams.city}
-                onChange={handleFilterChange}
-                placeholder="Örn. Ankara"
-                style={{
-                  width: "100%",
-                  padding: "10px",
-                  borderRadius: "6px",
-                  border: "1px solid #ccc",
-                  marginTop: "5px",
-                  outline: "none",
-                }}
-              />
+
+              {/* Aramalı Şehir Seçici (Özel) */}
+              <div
+                className="custom-city-dropdown"
+                style={{ position: "relative", marginTop: "5px" }}
+              >
+                <div
+                  className={`city-active-tab ${isCityOpen ? "open" : ""}`}
+                  onClick={() => setIsCityOpen(!isCityOpen)}
+                  style={{
+                    padding: "10px",
+                    borderRadius: "6px",
+                    border: "1px solid #ccc",
+                    background: "#fff",
+                    cursor: "pointer",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    fontSize: "0.95rem",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  {filterParams.city
+                    ? cities.find((c) => c.id === filterParams.city)?.name ||
+                      cities.find((c) => c.name === filterParams.city)?.name ||
+                      filterParams.city
+                    : "Tüm Şehirler"}
+                  <span
+                    style={{
+                      fontSize: "0.7rem",
+                      color: "#888",
+                      transition: "transform 0.2s",
+                      transform: isCityOpen ? "rotate(180deg)" : "none",
+                    }}
+                  >
+                    ▼
+                  </span>
+                </div>
+
+                {isCityOpen && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "calc(100% + 5px)",
+                      left: 0,
+                      right: 0,
+                      background: "#fff",
+                      border: "1px solid #ddd",
+                      borderRadius: "10px",
+                      boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
+                      zIndex: 1000,
+                      overflow: "hidden",
+                      animation: "fadeIn 0.2s ease-out",
+                    }}
+                  >
+                    <input
+                      type="text"
+                      autoFocus
+                      placeholder="Şehir ara..."
+                      style={{
+                        width: "100%",
+                        padding: "12px",
+                        border: "none",
+                        borderBottom: "1px solid #f0f0f0",
+                        fontSize: "0.9rem",
+                        outline: "none",
+                        background: "#fcfcfc",
+                      }}
+                      value={citySearch}
+                      onChange={(e) => setCitySearch(e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <div style={{ maxHeight: "250px", overflowY: "auto" }}>
+                      <div
+                        style={{
+                          padding: "10px 15px",
+                          fontSize: "0.9rem",
+                          cursor: "pointer",
+                          transition: "background 0.15s",
+                        }}
+                        className="city-option"
+                        onClick={() => {
+                          setFilterParams((prev) => ({ ...prev, city: "" }));
+                          setIsCityOpen(false);
+                          setCitySearch("");
+                        }}
+                      >
+                        Tüm Şehirler
+                      </div>
+                      {cities
+                        .filter((c) =>
+                          c.name
+                            .toLowerCase()
+                            .includes(citySearch.toLowerCase()),
+                        )
+                        .map((c) => (
+                          <div
+                            key={c.id}
+                            style={{
+                              padding: "10px 15px",
+                              fontSize: "0.9rem",
+                              cursor: "pointer",
+                              transition: "background 0.15s",
+                              backgroundColor:
+                                filterParams.city === c.id ||
+                                filterParams.city === c.name
+                                  ? "#f0f7ff"
+                                  : "transparent",
+                              color:
+                                filterParams.city === c.id ||
+                                filterParams.city === c.name
+                                  ? "#4f46e5"
+                                  : "#444",
+                            }}
+                            className="city-option"
+                            onClick={() => {
+                              setFilterParams((prev) => ({
+                                ...prev,
+                                city: c.id,
+                              }));
+                              setIsCityOpen(false);
+                              setCitySearch("");
+                            }}
+                          >
+                            {c.name}
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <style>{`
+                .city-option:hover { background-color: #f0f7ff !important; color: #4f46e5 !important; }
+                @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+              `}</style>
             </div>
 
             <div style={{ marginBottom: "15px" }}>

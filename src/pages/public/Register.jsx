@@ -19,7 +19,86 @@ const Register = () => {
     email: "",
     password: "",
     gender: "",
+    phoneNumber: "",
   });
+
+  const [countryCode, setCountryCode] = useState("+90");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const countries = [
+    { code: "+90", label: "tr", name: "Türkçe", flag: "https://flagcdn.com/w40/tr.png" },
+    { code: "+966", label: "ar", name: "Arapça", flag: "https://flagcdn.com/w40/sa.png" },
+    { code: "+1", label: "en", name: "İngilizce", flag: "https://flagcdn.com/w40/us.png" },
+    { code: "+49", label: "de", name: "Almanca", flag: "https://flagcdn.com/w40/de.png" },
+    { code: "+33", label: "fr", name: "Fransızca", flag: "https://flagcdn.com/w40/fr.png" },
+    { code: "+34", label: "es", name: "İspanyolca", flag: "https://flagcdn.com/w40/es.png" },
+    { code: "+39", label: "it", name: "İtalyanca", flag: "https://flagcdn.com/w40/it.png" },
+    { code: "+7", label: "ru", name: "Rusça", flag: "https://flagcdn.com/w40/ru.png" },
+    { code: "+86", label: "zh", name: "Çince", flag: "https://flagcdn.com/w40/cn.png" },
+    { code: "+81", label: "ja", name: "Japonca", flag: "https://flagcdn.com/w40/jp.png" },
+    { code: "+82", label: "ko", name: "Korece", flag: "https://flagcdn.com/w40/kr.png" },
+    { code: "+351", label: "pt", name: "Portekizce", flag: "https://flagcdn.com/w40/pt.png" },
+    { code: "+31", label: "nl", name: "Hollandaca", flag: "https://flagcdn.com/w40/nl.png" },
+    { code: "+30", label: "el", name: "Yunanca", flag: "https://flagcdn.com/w40/gr.png" },
+    { code: "+98", label: "fa", name: "Farsça", flag: "https://flagcdn.com/w40/ir.png" },
+    { code: "+91", label: "hi", name: "Hintçe", flag: "https://flagcdn.com/w40/in.png" },
+    { code: "+92", label: "ur", name: "Urduca", flag: "https://flagcdn.com/w40/pk.png" },
+    { code: "+972", label: "he", name: "İbranice", flag: "https://flagcdn.com/w40/il.png" },
+    { code: "+46", label: "sv", name: "İsveççe", flag: "https://flagcdn.com/w40/se.png" },
+    { code: "+47", label: "no", name: "Norveççe", flag: "https://flagcdn.com/w40/no.png" },
+    { code: "+45", label: "da", name: "Danca", flag: "https://flagcdn.com/w40/dk.png" },
+    { code: "+358", label: "fi", name: "Fince", flag: "https://flagcdn.com/w40/fi.png" },
+    { code: "+48", label: "pl", name: "Lehçe", flag: "https://flagcdn.com/w40/pl.png" },
+    { code: "+36", label: "hu", name: "Macarca", flag: "https://flagcdn.com/w40/hu.png" },
+    { code: "+40", label: "ro", name: "Romence", flag: "https://flagcdn.com/w40/ro.png" },
+    { code: "+359", label: "bg", name: "Bulgarca", flag: "https://flagcdn.com/w40/bg.png" },
+    { code: "+381", label: "sr", name: "Sırpça", flag: "https://flagcdn.com/w40/rs.png" },
+    { code: "+385", label: "hr", name: "Hırvatça", flag: "https://flagcdn.com/w40/hr.png" },
+    { code: "+387", label: "bs", name: "Boşnakça", flag: "https://flagcdn.com/w40/ba.png" },
+    { code: "+355", label: "sq", name: "Arnavutça", flag: "https://flagcdn.com/w40/al.png" },
+    { code: "+380", label: "uk", name: "Ukraynaca", flag: "https://flagcdn.com/w40/ua.png" },
+    { code: "+995", label: "ka", name: "Gürcüce", flag: "https://flagcdn.com/w40/ge.png" },
+    { code: "+374", label: "hy", name: "Ermenice", flag: "https://flagcdn.com/w40/am.png" },
+    { code: "+66", label: "th", name: "Tayca", flag: "https://flagcdn.com/w40/th.png" },
+    { code: "+84", label: "vi", name: "Vietnamca", flag: "https://flagcdn.com/w40/vn.png" },
+    { code: "+60", label: "ms", name: "Malayca", flag: "https://flagcdn.com/w40/my.png" },
+    { code: "+62", label: "id", name: "Endonezce", flag: "https://flagcdn.com/w40/id.png" },
+    { code: "+254", label: "sw", name: "Svahili", flag: "https://flagcdn.com/w40/ke.png" },
+    { code: "+27", label: "af", name: "Afrikanca", flag: "https://flagcdn.com/w40/za.png" },
+    { code: "+251", label: "am", name: "Amharca", flag: "https://flagcdn.com/w40/et.png" },
+    { code: "+994", label: "az", name: "Azerice", flag: "https://flagcdn.com/w40/az.png" },
+    { code: "+7", label: "kk", name: "Kazakça", flag: "https://flagcdn.com/w40/kz.png" },
+    { code: "+998", label: "uz", name: "Özbekçe", flag: "https://flagcdn.com/w40/uz.png" },
+    { code: "+993", label: "tk", name: "Türkmence", flag: "https://flagcdn.com/w40/tm.png" },
+    { code: "+93", label: "ps", name: "Peştuca", flag: "https://flagcdn.com/w40/af.png" },
+    { code: "+880", label: "bn", name: "Bengalce", flag: "https://flagcdn.com/w40/bd.png" },
+    { code: "+91", label: "ta", name: "Tamilce", flag: "https://flagcdn.com/w40/in.png" },
+    { code: "+91", label: "te", name: "Teluguca", flag: "https://flagcdn.com/w40/in.png" },
+  ];
+
+  const selectedCountry =
+    countries.find((c) => c.code === countryCode) || countries[0];
+
+  const filteredCountries = countries.filter(
+    (c) =>
+      c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.code.includes(searchTerm) ||
+      c.label.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const formatPhoneNumber = (value) => {
+    if (!value) return value;
+    const phoneNumber = value.replace(/[^\d]/g, "");
+    const phoneNumberLength = phoneNumber.length;
+    if (phoneNumberLength < 4) return phoneNumber;
+    if (phoneNumberLength < 7) {
+      return `${phoneNumber.slice(0, 3)} ${phoneNumber.slice(3)}`;
+    }
+    if (phoneNumberLength < 9) {
+      return `${phoneNumber.slice(0, 3)} ${phoneNumber.slice(3, 6)} ${phoneNumber.slice(6)}`;
+    }
+    return `${phoneNumber.slice(0, 3)} ${phoneNumber.slice(3, 6)} ${phoneNumber.slice(6, 8)} ${phoneNumber.slice(8, 10)}`;
+  };
 
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -52,7 +131,12 @@ const Register = () => {
       }
     }
 
-    setData({ ...data, [id]: value });
+    if (id === "phoneNumber") {
+      const formattedValue = formatPhoneNumber(value);
+      setData({ ...data, [id]: formattedValue });
+    } else {
+      setData({ ...data, [id]: value });
+    }
     // Kullanıcı yazarken hataları temizle
     if (error) setError("");
   };
@@ -89,11 +173,24 @@ const Register = () => {
     setIsLoading(true);
 
     try {
-      // API'ye gönderilecek veriyi hazırla
-      const payload = { ...data };
+      // 1. Telefon numarasını temizle: Boşlukları ve rakam dışı her şeyi at (Uluslararası format için)
+      let phonePart = data.phoneNumber.trim().replace(/\D/g, "");
+      // Başındaki '0'ı at (örn: '0552' -> '552')
+      if (phonePart.startsWith("0")) {
+        phonePart = phonePart.substring(1);
+      }
+      const cleanedPhoneNumber = `${countryCode}${phonePart}`;
+      
+      const payload = {
+        ...data,
+        phoneNumber: cleanedPhoneNumber,
+      };
+
       if (payload.gender) {
         payload.gender = Number(payload.gender);
       }
+
+      console.log("Kayıt isteği gönderiliyor. Payload:", payload);
 
       const res = await registerUser(payload);
       if (res.data.success) {
@@ -170,10 +267,15 @@ const Register = () => {
         }
       }
     } catch (err) {
-      console.error(err);
+      console.error("--- KAYIT HATASI DETAYI ---");
+      console.error("Durum Kodu:", err.response?.status);
+      console.error("Hata Mesajı:", err.response?.data);
+      console.error("---------------------------");
+
       let errorMessage =
         err.response?.data?.message ||
-        "Kayıt işlemi sırasında bir hata oluştu.";
+        err.response?.data?.error ||
+        "Kayıt işlemi sırasında bir sunucu hatası (500) oluştu. Lütfen backend konsolundaki logları kontrol edin.";
 
       // Backend'den gelen spesifik İngilizce hatayı yakalayıp Türkçe'ye çeviriyoruz
       if (
@@ -315,6 +417,209 @@ const Register = () => {
           </div>
 
           {/* PhoneNumber Input with Country Code */}
+          <div style={{ marginTop: "10px", display: "flex", gap: "10px" }}>
+            <div style={{ position: "relative", width: "110px" }}>
+              {/* Dropdown Trigger */}
+              <div
+                className="modern-input"
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  cursor: "pointer",
+                  padding: "0 12px",
+                  userSelect: "none",
+                  backgroundColor: "white",
+                  height: "45px",
+                  opacity: 1, // Solukluğu gidermek için tam opaklık
+                  border: "1px solid #e0e0e0", // Daha belirgin sınır
+                }}
+              >
+                <div
+                  style={{ display: "flex", alignItems: "center", gap: "8px" }}
+                >
+                  <img
+                    src={selectedCountry.flag}
+                    alt={selectedCountry.label}
+                    style={{
+                      width: "22px",
+                      height: "auto",
+                      borderRadius: "2px",
+                      opacity: 1,
+                      filter: "brightness(1.05) contrast(1.05)",
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: "700",
+                      textTransform: "uppercase",
+                      color: "#333",
+                    }}
+                  >
+                    {selectedCountry.label}
+                  </span>
+                </div>
+                <span
+                  style={{ fontSize: "10px", color: "#777", marginLeft: "4px" }}
+                >
+                  {isDropdownOpen ? "▲" : "▼"}
+                </span>
+              </div>
+
+              {/* Dropdown Options */}
+              {isDropdownOpen && (
+                <>
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "105%",
+                      left: 0,
+                      width: "220px",
+                      backgroundColor: "white",
+                      border: "1px solid #ddd",
+                      borderRadius: "12px",
+                      zIndex: 1000,
+                      boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {/* Search Input */}
+                    <div
+                      style={{ padding: "8px", borderBottom: "1px solid #eee" }}
+                    >
+                      <input
+                        type="text"
+                        placeholder="Dil veya kod ara..."
+                        style={{
+                          width: "100%",
+                          padding: "6px 10px",
+                          borderRadius: "6px",
+                          border: "1px solid #ddd",
+                          fontSize: "12px",
+                          outline: "none",
+                        }}
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onClick={(e) => e.stopPropagation()} // Engelle ki dropdown kapanmasın
+                        autoFocus
+                      />
+                    </div>
+
+                    <ul
+                      style={{
+                        listStyle: "none",
+                        padding: "4px 0",
+                        margin: 0,
+                        maxHeight: "220px",
+                        overflowY: "auto",
+                      }}
+                    >
+                      {filteredCountries.length > 0 ? (
+                        filteredCountries.map((c) => (
+                          <li
+                            key={c.code + c.label}
+                            onClick={() => {
+                              setCountryCode(c.code);
+                              setIsDropdownOpen(false);
+                              setSearchTerm("");
+                            }}
+                            style={{
+                              padding: "10px 15px",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "12px",
+                              fontSize: "13px",
+                              color: "#444",
+                              transition: "background-color 0.2s",
+                              backgroundColor:
+                                countryCode === c.code
+                                  ? "#f0f4ff"
+                                  : "transparent",
+                            }}
+                            onMouseEnter={(e) =>
+                              (e.currentTarget.style.backgroundColor =
+                                "#f5f7fa")
+                            }
+                            onMouseLeave={(e) =>
+                              (e.currentTarget.style.backgroundColor =
+                                countryCode === c.code
+                                  ? "#f0f4ff"
+                                  : "transparent")
+                            }
+                          >
+                            <img
+                              src={c.flag}
+                              alt={c.label}
+                              style={{
+                                width: "20px",
+                                borderRadius: "2px",
+                                filter: "brightness(1.05) contrast(1.05)",
+                                boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
+                              }}
+                            />
+                            <span
+                              style={{
+                                flex: 1,
+                                fontWeight:
+                                  countryCode === c.code ? "600" : "400",
+                              }}
+                            >
+                              {c.name}
+                            </span>
+                            <span style={{ color: "#999", fontSize: "11px" }}>
+                              {c.code}
+                            </span>
+                          </li>
+                        ))
+                      ) : (
+                        <li
+                          style={{
+                            padding: "15px",
+                            textAlign: "center",
+                            fontSize: "12px",
+                            color: "#999",
+                          }}
+                        >
+                          Sonuç bulunamadı
+                        </li>
+                      )}
+                    </ul>
+                  </div>
+                  {/* Backdrop to close dropdown */}
+                  <div
+                    onClick={() => {
+                      setIsDropdownOpen(false);
+                      setSearchTerm("");
+                    }}
+                    style={{
+                      position: "fixed",
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      zIndex: 999,
+                      background: "transparent",
+                    }}
+                  />
+                </>
+              )}
+            </div>
+
+            <input
+              required
+              className="modern-input"
+              style={{ flex: 1 }}
+              type="tel"
+              placeholder="Telefon Numarası"
+              id="phoneNumber"
+              value={data.phoneNumber}
+              onChange={handleInputChange}
+            />
+          </div>
 
           {/* Register Button */}
           <button

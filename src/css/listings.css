@@ -104,6 +104,117 @@
   color: #333;
 }
 
+/* --- Aramalı Şehir Seçici (Özel) --- */
+.city-searchable-container {
+  position: relative;
+}
+
+.custom-city-dropdown {
+  position: relative;
+  width: 100%;
+}
+
+.city-active-tab {
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.95rem;
+  transition: all 0.2s;
+}
+
+.city-active-tab:hover {
+  border-color: #4a90e2;
+}
+
+.city-active-tab.open {
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+}
+
+.dropdown-arrow {
+  font-size: 0.7rem;
+  color: #888;
+  transition: transform 0.2s;
+}
+
+.city-active-tab.open .dropdown-arrow {
+  transform: rotate(180deg);
+}
+
+.city-dropdown-content {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  z-index: 100;
+  overflow: hidden;
+  animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.city-search-input {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 0.9rem;
+  outline: none;
+  background: #fcfcfc;
+}
+
+.city-options-list {
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.city-option {
+  padding: 10px 15px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s;
+  color: #444;
+}
+
+.city-option:hover {
+  background: #f0f7ff;
+  color: #4a90e2;
+}
+
+.city-option.selected {
+  background: #4a90e2;
+  color: #fff;
+}
+
+.city-options-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.city-options-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.city-options-list::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 10px;
+}
+
+.city-options-list::-webkit-scrollbar-thumb:hover {
+  background: #bbb;
+}
+
 /* --- SAĞ İLAN SONUÇLARI --- */
 .listings-content {
   flex: 1;

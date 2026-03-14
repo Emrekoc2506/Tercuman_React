@@ -220,11 +220,11 @@ function Header() {
                     >
                       {notifications.map((n) => (
                         <div
-                          key={n.id}
+                          key={n.messageId}
                           style={{
                             padding: "10px",
                             borderRadius: "6px",
-                            background: n.isRead ? "#f8f9fa" : "#e6f7ff", // Okunanlar gri, okunmayanlar açık mavi
+                            background: n.isRead ? "#f8f9fa" : "#e6f7ff",
                             borderLeft: n.isRead
                               ? "3px solid #ccc"
                               : "3px solid #007bff",
@@ -232,42 +232,77 @@ function Header() {
                             justifyContent: "space-between",
                             alignItems: "flex-start",
                             fontSize: "13px",
+                            transition: "all 0.2s",
                           }}
                         >
-                          <div>
+                          <div style={{ flex: 1, marginRight: "10px" }}>
                             <strong
                               style={{
                                 display: "block",
-                                marginBottom: "3px",
-                                color: n.isRead ? "#555" : "#000",
+                                marginBottom: "2px",
+                                color: n.isRead ? "#666" : "#222",
+                                fontSize: "14px",
                               }}
                             >
-                              {n.title || "Yeni Bildirim"}
+                              {n.senderName}{" "}
+                              <span
+                                style={{
+                                  fontSize: "11px",
+                                  color: "#888",
+                                  fontWeight: "normal",
+                                  marginLeft: "5px",
+                                }}
+                              >
+                                • Mesaj
+                              </span>
                             </strong>
-                            <span style={{ color: "#666" }}>{n.message}</span>
+                            <span
+                              style={{
+                                color: "#555",
+                                display: "-webkit-box",
+                                WebkitLineClamp: "2",
+                                WebkitBoxOrient: "vertical",
+                                overflow: "hidden",
+                                line闖ight: "1.4",
+                              }}
+                            >
+                              {n.content}
+                            </span>
                             <span
                               style={{
                                 display: "block",
                                 fontSize: "10px",
                                 color: "#aaa",
-                                marginTop: "5px",
+                                marginTop: "6px",
                               }}
                             >
-                              {new Date(n.createdAt).toLocaleString("tr-TR")}
+                              {new Date(n.sentAt).toLocaleString("tr-TR", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                day: "numeric",
+                                month: "short",
+                              })}
                             </span>
                           </div>
 
-                          {/* Okundu İşaretleme Butonu */}
                           {!n.isRead && (
                             <button
-                              onClick={() => handleMarkAsRead(n.id)}
+                              onClick={() => handleMarkAsRead(n.messageId)}
                               title="Okundu İşaretle"
                               style={{
-                                background: "none",
+                                background: "#28a74522",
                                 border: "none",
                                 color: "#28a745",
+                                borderRadius: "50%",
+                                width: "24px",
+                                height: "24px",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
                                 cursor: "pointer",
-                                fontSize: "16px",
+                                fontSize: "12px",
+                                flexShrink: 0,
+                                marginTop: "2px",
                               }}
                             >
                               ✔

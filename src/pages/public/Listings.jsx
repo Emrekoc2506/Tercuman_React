@@ -33,6 +33,10 @@ const Listings = () => {
     maxPrice: "",
   });
 
+  // Şehir seçici için ek state'ler
+  const [citySearch, setCitySearch] = useState("");
+  const [isCityOpen, setIsCityOpen] = useState(false);
+
   // 1. Sayfa ilk açıldığında Dilleri ve Şehirleri çek (Filtre Paneli İçin)
   // Ayrıca hiçbir filtre yokken tüm aktif ilanları da çekelim
   useEffect(() => {
@@ -165,21 +169,61 @@ const Listings = () => {
           </select>
         </div>
 
-        {/* Şehir Filtresi */}
-        <div className="filter-group">
+        {/* Şehir Filtresi (Özel Aramalı Tip) */}
+        <div className="filter-group city-searchable-container">
           <label>Şehir</label>
-          <select
-            name="cityId"
-            value={filters.cityId}
-            onChange={handleFilterChange}
-          >
-            <option value="">Tümü</option>
-            {cities.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          <div className="custom-city-dropdown">
+            <div 
+              className={`city-active-tab ${isCityOpen ? "open" : ""}`}
+              onClick={() => setIsCityOpen(!isCityOpen)}
+            >
+              {filters.cityId 
+                ? cities.find(c => c.id === filters.cityId)?.name || "Şehir Seçiliyor..."
+                : "Tüm Şehirler"}
+              <span className="dropdown-arrow">▼</span>
+            </div>
+
+            {isCityOpen && (
+              <div className="city-dropdown-content">
+                <input 
+                  type="text" 
+                  autoFocus
+                  placeholder="Şehir ara..." 
+                  className="city-search-input"
+                  value={citySearch}
+                  onChange={(e) => setCitySearch(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                />
+                <div className="city-options-list">
+                  <div 
+                    className="city-option" 
+                    onClick={() => {
+                      setFilters(prev => ({ ...prev, cityId: "" }));
+                      setIsCityOpen(false);
+                      setCitySearch("");
+                    }}
+                  >
+                    Tüm Şehirler
+                  </div>
+                  {cities
+                    .filter(c => c.name.toLowerCase().includes(citySearch.toLowerCase()))
+                    .map((c) => (
+                      <div 
+                        key={c.id} 
+                        className={`city-option ${filters.cityId === c.id ? "selected" : ""}`}
+                        onClick={() => {
+                          setFilters(prev => ({ ...prev, cityId: c.id }));
+                          setIsCityOpen(false);
+                          setCitySearch("");
+                        }}
+                      >
+                        {c.name}
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Hizmet Türü Filtresi (Backend'deki ServiceType Enum ile uyumlu) */}
