@@ -94,39 +94,12 @@ const LoginPage = () => {
         // DİKKAT: Backend C# tarafında eklenmiş olan yeni "refreshToken" alanını da okuyoruz (7 gün geçerli uzun süreli token)
         const incomingRefreshToken = responseData.refreshToken;
 
-        let incomingRole = responseData.role;
-
-        // EĞER ROL JSON'DA YOKSA (undefined ise) AMA TOKEN VARSA TOKEN'I ÇÖZ
-        if (!incomingRole && incomingToken) {
-          const decoded = decodeJwt(incomingToken);
-          // console.log("ÇÖZÜMLENMİŞ TOKEN İÇERİĞİ:", decoded);
-          if (decoded) {
-            // ASP.NET Core varsayılan Claim tipleri veya normal role prop'u
-            incomingRole =
-              decoded[
-                "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
-              ] ||
-              decoded.role ||
-              decoded.Role;
-
-            // Eğer liste olarak gelirse string'e çevir
-            if (Array.isArray(incomingRole)) {
-              incomingRole = incomingRole[0];
-            }
-          }
-        }
-
-        // console.log("ÇIKARILAN ROL BİLGİSİ:", incomingRole);
-
         // -- 1. ACCESS TOKEN (Kısa süreli - İstek yapmak için kullanılır) tarayıcıya kaydediliyor --
         if (incomingToken) localStorage.setItem("token", incomingToken);
 
         // -- 2. REFRESH TOKEN (Uzun süreli - Arka planda Access Token'ı yenilemek için kullanılır) kaydediliyor --
         if (incomingRefreshToken)
           localStorage.setItem("refreshToken", incomingRefreshToken);
-
-        // -- 3. Kullanıcı Rolü kaydediliyor --
-        if (incomingRole) localStorage.setItem("role", incomingRole);
 
         // -- Tüm veriler başarılıysa anasayfaya (veya ilgili panele) yönlendir --
         navigate("/");
