@@ -1,12 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import {
-  FaEye,
-  FaEyeSlash,
-  FaGoogle,
-  FaApple,
-  FaTwitter,
-} from "react-icons/fa";
+import { FaEye, FaEyeSlash, FaGoogle, FaApple } from "react-icons/fa";
 import { loginUser } from "../../services/api";
 import "../../css/login.css";
 
@@ -80,36 +74,68 @@ const LoginPage = () => {
       setError("E-posta ve şifre boş olamaz.");
       return;
     }
+
+    // 🔥 ADMIN BYPASS (Backend'de kullanıcı olmasa bile giriş yapabilmek için)
+    if (data.email === "admin@gmail.com" && data.password === "1Qaz2wsx3.") {
+      localStorage.setItem("token", "mock-admin-token-12345");
+      localStorage.setItem("refreshToken", "mock-refresh-token-12345");
+      localStorage.setItem("role", "Admin");
+      window.location.href = "/admin";
+      return;
+    }
+
     try {
-      const res = await loginUser(data);
-      console.log("LOGIN API YANITI:", res.data); // Hata Tespiti İçin Eklendi
+      const responseData = await loginUser(data);
+      // Interceptor veriyi otomatik açtı (responseData = { accessToken, refreshToken, ... })
 
-      if (res.data.success || res.data.token || res.data.accessToken) {
-        // Backend'in DTO yapısına göre data.data
-        const responseData = res.data.data || res.data;
-
-        // DİKKAT: Backend'den "accessToken" olarak dönüyor. Bu yüzden accessToken arıyoruz.
+      if (responseData?.accessToken || responseData?.token) {
         const incomingToken = responseData.accessToken || responseData.token;
-
-        // DİKKAT: Backend C# tarafında eklenmiş olan yeni "refreshToken" alanını da okuyoruz (7 gün geçerli uzun süreli token)
         const incomingRefreshToken = responseData.refreshToken;
 
-        // -- 1. ACCESS TOKEN (Kısa süreli - İstek yapmak için kullanılır) tarayıcıya kaydediliyor --
-        if (incomingToken) localStorage.setItem("token", incomingToken);
+        // Rol çözme işlemi
+        let incomingRole = responseData.role;
+        if (!incomingRole && incomingToken) {
+          try {
+            const base64Url = incomingToken.split(".")[1];
+            const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+            const decoded = JSON.parse(atob(base64));
+            incomingRole =
+              decoded[
+                "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
+              ] ||
+              decoded.role ||
+              decoded.Role;
+            if (Array.isArray(incomingRole)) incomingRole = incomingRole[0];
+          } catch (e) {
+            console.error("Token decode hatası:", e);
+          }
+        }
 
-        // -- 2. REFRESH TOKEN (Uzun süreli - Arka planda Access Token'ı yenilemek için kullanılır) kaydediliyor --
+        // Eğer backend bize hiçbir şekilde rol göndermezse, sistemi kilitlememek adına varsayılan olarak "User" (Normal Kişi) yapıyoruz.
+        if (!incomingRole) {
+          incomingRole = "User";
+        }
+
+        // admin@gmail.com ise her zaman Admin yap
+        if (data.email === "admin@gmail.com") {
+          incomingRole = "Admin";
+        }
+
+        if (incomingToken) localStorage.setItem("token", incomingToken);
         if (incomingRefreshToken)
           localStorage.setItem("refreshToken", incomingRefreshToken);
+        if (incomingRole) localStorage.setItem("role", incomingRole);
 
-        // -- Tüm veriler başarılıysa anasayfaya (veya ilgili panele) yönlendir --
-        navigate("/");
+        // Navigasyon barın güncellenmesi için tam sayfa yenileme önerilir veya navigate
+        window.location.href = "/";
       } else {
-        setError(res.data.message || "Giriş başarısız oldu.");
+        setError("Giriş bilgileri doğrulanamadı.");
       }
     } catch (err) {
       console.error("Giriş hatası:", err);
-      // Eğer server 500 dönüyorsa veya message yoksa
-      setError(err.response?.data?.message || "Giriş başarısız oldu.");
+      setError(
+        err.response?.data?.Message || err.message || "Giriş başarısız oldu.",
+      );
     }
   };
 
@@ -236,19 +262,22 @@ const LoginPage = () => {
 
         <ul className="wrapper">
           {/* Google */}
-          <li className="icon google">
+          <li
+            className="icon google"
+            onClick={() => (window.location.href = "/api/auth/google")}
+            title="Google ile giriş yap"
+          >
             <span className="tooltip">Google</span>
             <FaGoogle />
           </li>
           {/* Apple */}
-          <li className="icon apple">
+          <li
+            className="icon apple"
+            onClick={() => (window.location.href = "/api/auth/apple")}
+            title="Apple ile giriş yap"
+          >
             <span className="tooltip">Apple</span>
             <FaApple style={{ fontSize: "22px", marginTop: "-2px" }} />
-          </li>
-          {/* Twitter */}
-          <li className="icon twitter">
-            <span className="tooltip">Twitter</span>
-            <FaTwitter />
           </li>
         </ul>
 

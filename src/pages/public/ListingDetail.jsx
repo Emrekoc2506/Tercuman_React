@@ -1,8 +1,29 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getListingById, getLanguages } from "../../services/api";
+import {
+  getListingById,
+  getLanguages,
+  addFavoriteTranslator,
+  removeFavoriteTranslator,
+  getCustomerFavorites,
+} from "../../services/api";
 import ChatModal from "../../components/ChatModal";
-import { FaChevronLeft, FaChevronRight, FaStar, FaShieldAlt } from "react-icons/fa";
+import {
+  FaChevronLeft,
+  FaChevronRight,
+  FaStar,
+  FaRegStar,
+  FaShieldAlt,
+  FaHeart,
+  FaRegHeart,
+  FaExclamationTriangle,
+  FaAward,
+  FaGraduationCap,
+  FaLink,
+  FaImage,
+  FaClock,
+  FaCheckCircle,
+} from "react-icons/fa";
 
 const ListingDetail = () => {
   const { id } = useParams();
@@ -11,48 +32,109 @@ const ListingDetail = () => {
   const [listing, setListing] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showChatModal, setShowChatModal] = useState(false);
-  const [activeTab, setActiveTab] = useState("detaylar"); // detaylar | konum
+  const [activeTab, setActiveTab] = useState("detaylar"); // detaylar | konum | sertifikalar | diploma
   const [languageMap, setLanguageMap] = useState({});
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
+
+  // Dinamik Belgeler
+  const [dynamicDiplomas, setDynamicDiplomas] = useState([]);
+  const [dynamicCerts, setDynamicCerts] = useState([]);
 
   useEffect(() => {
-    // Tüm dilleri backend'den çekip { id: isim } map'i oluşturur
-    const fetchLanguages = async () => {
+    const fetchData = async () => {
+      setLoading(true);
       try {
-        const res = await getLanguages();
-        const langs = res.data?.data || res.data || [];
+        // 1. Dilleri ve İlan Detayını paralel çek
+        const [langs, detail] = await Promise.all([
+          getLanguages(),
+          getListingById(id),
+        ]);
+
+        // 2. Dil map'ini oluştur
         const map = {};
-        langs.forEach((l) => {
+        (langs || []).forEach((l) => {
           map[l.id] = l.name || l.languageName || l.language || "?";
         });
         setLanguageMap(map);
-      } catch (error) {
-        console.error("Diller alınamadı:", error);
-      }
-    };
 
-    const fetchDetail = async () => {
-      try {
-        const response = await getListingById(id);
-        setListing(response.data?.data || response.data);
+        // 3. İlan detayını işle
+        if (detail) {
+          const timestamp = Date.now();
+          const updatedDetail = { ...detail };
+
+          if (updatedDetail.translatorPhotoUrl) {
+            updatedDetail.translatorPhotoUrl = `${updatedDetail.translatorPhotoUrl}?v=${timestamp}`;
+          }
+
+          if (updatedDetail.images && Array.isArray(updatedDetail.images)) {
+            updatedDetail.images = updatedDetail.images.map(
+              (img) => `${img}?v=${timestamp}`,
+            );
+          }
+
+          setListing(updatedDetail);
+        }
+
+        // 4. Favori durumu (Eğer login ise)
+        const token = localStorage.getItem("token");
+        if (token && id) {
+          try {
+            const favorites = await getCustomerFavorites();
+            const favoriteList = favorites || [];
+            const favorited = favoriteList.some(
+              (f) => f.listingId === id || f.id === id,
+            );
+            setIsFavorited(favorited);
+          } catch (favError) {
+            console.warn(
+              "Favori durumu alınamadı (API 500 hatası olabilir):",
+              favError,
+            );
+            setIsFavorited(false);
+          }
+        }
       } catch (error) {
-        console.error("İlan detayı alınırken hata:", error);
+        console.error("Veri alınırken hata:", error);
+        setListing(null);
       } finally {
         setLoading(false);
       }
     };
 
     if (id) {
-      fetchLanguages().then(() => fetchDetail());
+      fetchData();
     }
   }, [id]);
+
+  const handleToggleFavorite = async () => {
+    setFavoriteLoading(true);
+    try {
+      if (isFavorited) {
+        await removeFavoriteTranslator(id);
+        setIsFavorited(false);
+      } else {
+        await addFavoriteTranslator(id);
+        setIsFavorited(true);
+      }
+    } catch (err) {
+      alert(
+        "Favori işlemi gerçekleştirilemedi. Giriş yapmış olmanız gerekebilir.",
+      );
+    } finally {
+      setFavoriteLoading(false);
+    }
+  };
 
   // Auto-slide logic
   useEffect(() => {
     if (!listing || !listing.images || listing.images.length <= 1) return;
 
     const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev === listing.images.length - 1 ? 0 : prev + 1));
+      setCurrentSlide((prev) =>
+        prev === listing.images.length - 1 ? 0 : prev + 1,
+      );
     }, 5000); // 5 seconds
 
     return () => clearInterval(timer);
@@ -60,12 +142,16 @@ const ListingDetail = () => {
 
   const nextSlide = (e) => {
     e.stopPropagation();
-    setCurrentSlide((prev) => (prev === listing.images.length - 1 ? 0 : prev + 1));
+    setCurrentSlide((prev) =>
+      prev === listing.images.length - 1 ? 0 : prev + 1,
+    );
   };
 
   const prevSlide = (e) => {
     e.stopPropagation();
-    setCurrentSlide((prev) => (prev === 0 ? listing.images.length - 1 : prev - 1));
+    setCurrentSlide((prev) =>
+      prev === 0 ? listing.images.length - 1 : prev - 1,
+    );
   };
 
   if (loading) {
@@ -107,9 +193,9 @@ const ListingDetail = () => {
     "Çevirmen Üye";
   const initials = userFullName.substring(0, 2).toUpperCase();
   const photoUrl =
-    listing.images && listing.images.length > 0
-      ? listing.images[0]
-      : `https://ui-avatars.com/api/?name=${encodeURIComponent(userFullName)}&background=random`;
+    listing.translatorPhotoUrl ||
+    (listing.images && listing.images.length > 0 ? listing.images[0] : null) ||
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(userFullName)}&background=random`;
 
   const listingNo =
     listing.listingNo !== undefined
@@ -161,9 +247,12 @@ const ListingDetail = () => {
   const phone = listing.phone || listing.userPhone || "Telefon Belirtilmemiş";
   const category = listing.category || "Genel Çeviri / Özel Ders";
 
-  const images = (listing.images && listing.images.length > 0) 
-    ? listing.images 
-    : [`https://ui-avatars.com/api/?name=${encodeURIComponent(userFullName)}&background=random`];
+  const images =
+    listing.images && listing.images.length > 0
+      ? listing.images
+      : [
+          `https://ui-avatars.com/api/?name=${encodeURIComponent(userFullName)}&background=random`,
+        ];
 
   // Hizmet Türü: backend string veya sayı gönderebilir
   const mapServiceType = (v) => {
@@ -222,11 +311,24 @@ const ListingDetail = () => {
             {listing.title}
           </h1>
           <div style={{ display: "flex", gap: "10px" }}>
-            <span
-              style={{ cursor: "pointer", color: "#666", fontSize: "0.9rem" }}
+            <button
+              onClick={handleToggleFavorite}
+              disabled={favoriteLoading}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: isFavorited ? "#ef4444" : "#666",
+                fontSize: "1rem",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                fontWeight: "600",
+              }}
             >
-              ⭐ Favorilerime Ekle
-            </span>
+              {isFavorited ? <FaHeart /> : <FaRegHeart />}
+              {isFavorited ? "Favorilerimde" : "Favorilerime Ekle"}
+            </button>
           </div>
         </div>
 
@@ -245,18 +347,18 @@ const ListingDetail = () => {
               className="image-carousel-container"
               style={{
                 backgroundColor: "#f1f5f9",
-                height: "450px",
+                height: "350px", // 450px'den 350px'e düşürdük
                 display: "flex",
                 justifyContent: "center",
                 alignItems: "center",
                 borderRadius: "12px",
                 overflow: "hidden",
                 position: "relative",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.05)"
+                boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
               }}
             >
               {images.map((img, idx) => (
-                <div 
+                <div
                   key={idx}
                   style={{
                     position: "absolute",
@@ -269,15 +371,15 @@ const ListingDetail = () => {
                     display: "flex",
                     justifyContent: "center",
                     alignItems: "center",
-                    background: "#000"
+                    background: "#000",
                   }}
                 >
                   <img
                     src={img}
                     alt={`Listing Slide ${idx}`}
                     style={{
-                      maxHeight: "100%",
-                      maxWidth: "100%",
+                      height: "100%",
+                      width: "100%",
                       objectFit: "contain",
                     }}
                   />
@@ -287,7 +389,7 @@ const ListingDetail = () => {
               {/* Controls */}
               {images.length > 1 && (
                 <>
-                  <button 
+                  <button
                     onClick={prevSlide}
                     style={{
                       position: "absolute",
@@ -302,12 +404,12 @@ const ListingDetail = () => {
                       alignItems: "center",
                       justifyContent: "center",
                       zIndex: 10,
-                      backdropFilter: "blur(4px)"
+                      backdropFilter: "blur(4px)",
                     }}
                   >
                     <FaChevronLeft color="#333" />
                   </button>
-                  <button 
+                  <button
                     onClick={nextSlide}
                     style={{
                       position: "absolute",
@@ -322,31 +424,36 @@ const ListingDetail = () => {
                       alignItems: "center",
                       justifyContent: "center",
                       zIndex: 10,
-                      backdropFilter: "blur(4px)"
+                      backdropFilter: "blur(4px)",
                     }}
                   >
                     <FaChevronRight color="#333" />
                   </button>
 
                   {/* Dots */}
-                  <div style={{
-                    position: "absolute",
-                    bottom: "20px",
-                    display: "flex",
-                    gap: "8px",
-                    zIndex: 10
-                  }}>
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: "20px",
+                      display: "flex",
+                      gap: "8px",
+                      zIndex: 10,
+                    }}
+                  >
                     {images.map((_, idx) => (
-                      <div 
+                      <div
                         key={idx}
                         onClick={() => setCurrentSlide(idx)}
                         style={{
                           width: "8px",
                           height: "8px",
                           borderRadius: "50%",
-                          background: currentSlide === idx ? "#fff" : "rgba(255,255,255,0.5)",
+                          background:
+                            currentSlide === idx
+                              ? "#fff"
+                              : "rgba(255,255,255,0.5)",
                           cursor: "pointer",
-                          transition: "all 0.3s"
+                          transition: "all 0.3s",
                         }}
                       />
                     ))}
@@ -355,94 +462,188 @@ const ListingDetail = () => {
               )}
             </div>
 
-            {/* Alt Sekmeler (İlan Detayları / Konumu) */}
-            <div
-              style={{
-                marginTop: "30px",
-                border: "1px solid #ddd",
-                borderRadius: "8px",
-                backgroundColor: "#fff",
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  backgroundColor: "#f1f1f1",
-                  borderBottom: "1px solid #ddd",
+            {/* ESKİ BEĞENİLEN KUTUCUKLU SEKME TASARIMI (3 AYRI SEKME) */}
+            <div style={{ marginTop: "30px" }}>
+              <div 
+                style={{ 
+                  display: "flex", 
+                  backgroundColor: "#f1f5f9",
+                  borderRadius: "12px 12px 0 0",
+                  overflow: "hidden",
+                  width: "fit-content"
                 }}
               >
                 <button
                   onClick={() => setActiveTab("detaylar")}
                   style={{
-                    padding: "12px 25px",
+                    backgroundColor: activeTab === "detaylar" ? "#4f46e5" : "transparent",
+                    color: activeTab === "detaylar" ? "#fff" : "#475569",
                     border: "none",
-                    fontWeight: "bold",
+                    padding: "15px 30px",
+                    fontSize: "1rem",
+                    fontWeight: "700",
                     cursor: "pointer",
-                    backgroundColor:
-                      activeTab === "detaylar" ? "#4f46e5" : "transparent",
-                    color: activeTab === "detaylar" ? "#fff" : "#666",
+                    transition: "all 0.3s",
+                    borderRight: "1px solid #e2e8f0"
                   }}
                 >
                   İlan Detayları
                 </button>
+                <button
+                  onClick={() => setActiveTab("sertifikalar")}
+                  style={{
+                    backgroundColor: activeTab === "sertifikalar" ? "#4f46e5" : "transparent",
+                    color: activeTab === "sertifikalar" ? "#fff" : "#475569",
+                    border: "none",
+                    padding: "15px 30px",
+                    fontSize: "1rem",
+                    fontWeight: "700",
+                    cursor: "pointer",
+                    transition: "all 0.3s",
+                    borderRight: "1px solid #e2e8f0"
+                  }}
+                >
+                  Sertifikalar
+                </button>
+                <button
+                  onClick={() => setActiveTab("diploma")}
+                  style={{
+                    backgroundColor: activeTab === "diploma" ? "#4f46e5" : "transparent",
+                    color: activeTab === "diploma" ? "#fff" : "#475569",
+                    border: "none",
+                    padding: "15px 30px",
+                    fontSize: "1rem",
+                    fontWeight: "700",
+                    cursor: "pointer",
+                    transition: "all 0.3s"
+                  }}
+                >
+                  Diploma
+                </button>
               </div>
 
-              <div style={{ padding: "20px", minHeight: "200px" }}>
+              {/* SEKME İÇERİĞİ KUTUSU */}
+              <div 
+                style={{ 
+                  backgroundColor: "#fff", 
+                  border: "1px solid #e2e8f0", 
+                  borderRadius: "0 0 12px 12px", 
+                  padding: "30px",
+                  boxShadow: "0 4px 15px rgba(0,0,0,0.05)"
+                }}
+              >
                 {activeTab === "detaylar" && (
+                  <p
+                    style={{
+                      lineHeight: "1.8",
+                      color: "#334155",
+                      whiteSpace: "pre-wrap",
+                      fontSize: "1rem",
+                      margin: 0
+                    }}
+                  >
+                    {listing.description || "Bu ilan için bir açıklama girilmemiştir."}
+                  </p>
+                )}
+
+                {activeTab === "sertifikalar" && (
                   <div>
-                    <h3
-                      style={{
-                        fontSize: "1.1rem",
-                        borderBottom: "1px dotted #ccc",
-                        paddingBottom: "10px",
-                        marginBottom: "15px",
-                      }}
-                    >
-                      Açıklama
+                    <h3 style={{ color: "#1e293b", fontSize: "1.1rem", display: "flex", alignItems: "center", gap: "10px", marginBottom: "20px" }}>
+                      <FaAward style={{ color: "#fbbf24" }} /> Uzmanlık Sertifikaları
                     </h3>
-                    <p
-                      style={{
-                        whiteSpace: "pre-wrap",
-                        lineHeight: "1.6",
-                        color: "#444",
-                        fontSize: "0.95rem",
-                      }}
-                    >
-                      {listing.description ||
-                        "Bu ilan için bir açıklama girilmemiştir."}
-                    </p>
+                    <div className="certification-grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                      {dynamicCerts.map(cert => (
+                        <div key={cert.id} className="certification-item gold">
+                          <div className="cert-icon gold"><FaAward /></div>
+                          <div className="cert-info">
+                            <h4 style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                              {cert.title}
+                              {cert.status === "Verified" ? (
+                                <FaCheckCircle style={{ color: "#22c55e", fontSize: "0.9rem" }} title="Onaylı Belge" />
+                              ) : (
+                                <FaClock style={{ color: "#f59e0b", fontSize: "0.9rem" }} title="Onay Bekliyor" />
+                              )}
+                            </h4>
+                            <p>{cert.organization}</p>
+                            
+                            <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
+                              {cert.image && (
+                                <a href={cert.image} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "0.8rem", color: "#d97706", textDecoration: "none", background: "#fef3c7", padding: "4px 8px", borderRadius: "4px" }}>
+                                  <FaImage /> Fotoğraf
+                                </a>
+                              )}
+                              {cert.link && (
+                                <a href={cert.link} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "0.8rem", color: "#d97706", textDecoration: "none", background: "#fef3c7", padding: "4px 8px", borderRadius: "4px" }}>
+                                  <FaLink /> Belge Linki
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {dynamicCerts.length === 0 && <p style={{ color: "#94a3b8" }}>Henüz sertifika eklenmemiş.</p>}
+                    </div>
                   </div>
                 )}
-                {activeTab === "konum" && (
-                  <div>
+
+                {activeTab === "diploma" && (
+                  <div
+                    style={{
+                      padding: "20px",
+                      backgroundColor: "#f0f7ff",
+                      border: "2px solid #3b82f6",
+                      borderRadius: "16px",
+                    }}
+                  >
                     <h3
                       style={{
+                        marginTop: 0,
+                        color: "#1e3a8a",
                         fontSize: "1.1rem",
-                        borderBottom: "1px dotted #ccc",
-                        paddingBottom: "10px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
                         marginBottom: "15px",
                       }}
                     >
-                      Konum Bilgisi
+                      <FaGraduationCap /> Akademik Diplomalar
                     </h3>
-                    <p style={{ color: "#444" }}>
-                      İlan Konumu: <strong>{city}</strong>
-                    </p>
-                    <div
-                      style={{
-                        width: "100%",
-                        height: "300px",
-                        backgroundColor: "#eaeaea",
-                        display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
-                        borderRadius: "8px",
-                        marginTop: "15px",
-                        color: "#999",
-                      }}
-                    >
-                      (Harita Entegrasyonu Yapılacak)
+                    <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
+                      {dynamicDiplomas.map(dip => (
+                        <div
+                          key={dip.id}
+                          className="certification-item blue"
+                          style={{ backgroundColor: "#fff" }}
+                        >
+                          <div className="cert-icon blue">
+                            <FaGraduationCap />
+                          </div>
+                          <div className="cert-info">
+                            <h4 style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                              {dip.title}
+                              {dip.status === "Verified" ? (
+                                <FaCheckCircle style={{ color: "#3b82f6", fontSize: "0.9rem" }} title="Onaylı Üniversite Diploması" />
+                              ) : (
+                                <FaClock style={{ color: "#64748b", fontSize: "0.9rem" }} title="Onay Bekliyor" />
+                              )}
+                            </h4>
+                            <p>{dip.institution}</p>
+                            <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
+                              {dip.image && (
+                                <a href={dip.image} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "0.8rem", color: "#3b82f6", textDecoration: "none", background: "#eff6ff", padding: "4px 10px", borderRadius: "6px", fontWeight: "600" }}>
+                                  <FaImage /> Diploma Fotoğrafı
+                                </a>
+                              )}
+                              {dip.link && (
+                                <a href={dip.link} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "0.8rem", color: "#3b82f6", textDecoration: "none", background: "#eff6ff", padding: "4px 10px", borderRadius: "6px", fontWeight: "600" }}>
+                                  <FaLink /> Belgeyi Görüntüle
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {dynamicDiplomas.length === 0 && <p style={{ color: "#64748b" }}>Henüz diploma eklenmemiş.</p>}
                     </div>
                   </div>
                 )}

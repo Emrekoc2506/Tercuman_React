@@ -5,7 +5,6 @@ import {
   FaEyeSlash,
   FaGoogle,
   FaApple,
-  FaTwitter,
 } from "react-icons/fa";
 import { registerUser, loginUser } from "../../services/api";
 import "../../css/login.css";
@@ -190,69 +189,48 @@ const Register = () => {
         payload.gender = Number(payload.gender);
       }
 
-      console.log("Kayıt isteği gönderiliyor. Payload:", payload);
-
       const res = await registerUser(payload);
-      if (res.data.success) {
+      if (res) { // Interceptor başarılıysa veriyi (veya true) döner
         setMessage("Kayıt başarılı! Sisteme giriş yapılıyor...");
 
         try {
-          // Otomatik giriş işlemini başlat
-          const loginRes = await loginUser({
-            email: data.email,
-            password: data.password,
-          });
+          let responseData = res; // Eğer register endpoint'i token verdiyse, direkt kullan
+          
+          // Eğer token dönmemişse, loginUser ile zorla giriş yap
+          if (!responseData?.accessToken && !responseData?.token) {
+            responseData = await loginUser({
+              email: data.email,
+              password: data.password,
+            });
+          }
 
-          if (
-            loginRes.data.success ||
-            loginRes.data.token ||
-            loginRes.data.accessToken
-          ) {
-            const responseData = loginRes.data.data || loginRes.data;
-            const incomingToken =
-              responseData.accessToken || responseData.token;
+          if (responseData?.accessToken || responseData?.token) {
+            const incomingToken = responseData.accessToken || responseData.token;
             const incomingRefreshToken = responseData.refreshToken;
-            let incomingRole = responseData.role;
 
-            // Rol çözme işlemi (eğer yanıt içinde açıkça yoksa token içerisinden bul)
+            // Rol çözme işlemi
+            let incomingRole = responseData.role;
             if (!incomingRole && incomingToken) {
               try {
                 const base64Url = incomingToken.split(".")[1];
                 const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-                const jsonPayload = decodeURIComponent(
-                  atob(base64)
-                    .split("")
-                    .map(function (c) {
-                      return (
-                        "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2)
-                      );
-                    })
-                    .join(""),
-                );
-                const decoded = JSON.parse(jsonPayload);
-                if (decoded) {
-                  incomingRole =
-                    decoded[
-                      "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
-                    ] ||
-                    decoded.role ||
-                    decoded.Role;
-                  if (Array.isArray(incomingRole)) {
-                    incomingRole = incomingRole[0];
-                  }
-                }
+                const decoded = JSON.parse(atob(base64));
+                incomingRole = decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || decoded.role || decoded.Role;
+                if (Array.isArray(incomingRole)) incomingRole = incomingRole[0];
               } catch (e) {
                 console.error("Token decode hatası:", e);
               }
             }
 
-            // localStorage'a verileri yaz
+            // Eğer backend bize hiçbir şekilde rol göndermezse, sistemi kilitlememek adına varsayılan olarak "User" (Normal Kişi) yapıyoruz.
+            if (!incomingRole) {
+              incomingRole = "User";
+            }
+
             if (incomingToken) localStorage.setItem("token", incomingToken);
-            if (incomingRefreshToken)
-              localStorage.setItem("refreshToken", incomingRefreshToken);
+            if (incomingRefreshToken) localStorage.setItem("refreshToken", incomingRefreshToken);
             if (incomingRole) localStorage.setItem("role", incomingRole);
 
-            // Navigasyon barın ve sistemin bu değişimi tam algılaması için window.location.href ile ana sayfaya yönlendir
             window.location.href = "/";
             return;
           } else {
@@ -670,19 +648,22 @@ const Register = () => {
 
         <ul className="wrapper">
           {/* Google */}
-          <li className="icon google">
+          <li
+            className="icon google"
+            onClick={() => window.location.href = "/api/auth/google"}
+            title="Google ile kayıt ol"
+          >
             <span className="tooltip">Google</span>
             <FaGoogle />
           </li>
           {/* Apple */}
-          <li className="icon apple">
+          <li
+            className="icon apple"
+            onClick={() => window.location.href = "/api/auth/apple"}
+            title="Apple ile kayıt ol"
+          >
             <span className="tooltip">Apple</span>
             <FaApple style={{ fontSize: "22px", marginTop: "-2px" }} />
-          </li>
-          {/* Twitter */}
-          <li className="icon twitter">
-            <span className="tooltip">Twitter</span>
-            <FaTwitter />
           </li>
         </ul>
 

@@ -33,20 +33,18 @@ const ContactModal = ({ translatorId, translatorName, onClose }) => {
       };
 
       // 2. API isteğini gönder (POST /public/contact)
-      const res = await sendContactMessage(payload);
+      await sendContactMessage(payload);
 
-      // 3. Başarılı ise kullanıcıya bilgi ver
-      if (res.data.success) {
-        setSuccess(true);
-        // Formu temizle
-        setSenderName("");
-        setSenderEmail("");
-        setMessage("");
-        // 2 saniye sonra pencereyi kapat
-        setTimeout(() => {
-          onClose();
-        }, 2000);
-      }
+      // 3. Başarılı ise kullanıcıya bilgi ver (interceptor zaten ApiResponse'u açıyor, hata fırlatmazsa başarılıdır)
+      setSuccess(true);
+      // Formu temizle
+      setSenderName("");
+      setSenderEmail("");
+      setMessage("");
+      // 2 saniye sonra pencereyi kapat
+      setTimeout(() => {
+        onClose();
+      }, 2000);
     } catch (err) {
       console.error("Mesaj gönderme hatası:", err);
       setError(

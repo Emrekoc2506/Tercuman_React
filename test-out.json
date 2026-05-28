@@ -1,7 +1,11 @@
 {
   "login": {
-    "success": false,
-    "message": "Invalid column name 'CreatedAt'.\r\nInvalid column name 'Gender'.\r\nInvalid column name 'Name'."
+    "Success": false,
+    "Data": null,
+    "Message": "Login failed: User not found",
+    "Errors": {
+      "stackTrace": "   at Tercuman.Application.Services.AuthService.LoginAsync(LoginDto dto) in C:\\Users\\alp_t\\source\\repos\\MUSAB-KASAP\\TercumanAPI\\Tercuman.Application\\Services\\AuthService.cs:line 91\r\n   at Tercuman.API.Controllers.AuthController.Login(LoginDto dto) in C:\\Users\\alp_t\\source\\repos\\MUSAB-KASAP\\TercumanAPI\\Tercuman.API\\Controllers\\AuthController.cs:line 29\r\n   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.TaskOfIActionResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)\r\n   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)\r\n   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)\r\n   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)\r\n   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)\r\n   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.InvokeInnerFilterAsync()\r\n--- End of stack trace from previous location ---\r\n   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)\r\n   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)\r\n   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)\r\n   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)\r\n   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)\r\n   at Microsoft.AspNetCore.RateLimiting.RateLimitingMiddleware.InvokeInternal(HttpContext context, EnableRateLimitingAttribute enableRateLimitingAttribute)\r\n   at Tercuman.API.Middlewares.ExceptionMiddleware.InvokeAsync(HttpContext context) in C:\\Users\\alp_t\\source\\repos\\MUSAB-KASAP\\TercumanAPI\\Tercuman.API\\Middlewares\\ExceptionMiddleware.cs:line 25"
+    }
   },
   "register": {
     "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
@@ -12,9 +16,9 @@
         "The dto field is required."
       ],
       "$.gender": [
-        "The JSON value could not be converted to Tercuman.Domin.Enums.Gender. Path: $.gender | LineNumber: 0 | BytePositionInLine: 89."
+        "The JSON value could not be converted to Tercuman.Domain.Enums.Gender. Path: $.gender | LineNumber: 0 | BytePositionInLine: 89."
       ]
     },
-    "traceId": "00-90b93abc213dbe92d477685c7e2bf7e9-b44d6117672ade9f-00"
+    "traceId": "00-0252cda33fbb856c7c9bdfb12181ee32-0ec5a47010aee4d5-00"
   }
 }

@@ -1,7 +1,14 @@
+// @ts-nocheck
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { getLanguages, getCities, createListing, uploadListingImages } from "../../services/api";
-import { FaCamera, FaTimes, FaImage } from "react-icons/fa";
+import {
+  getLanguages,
+  getCities,
+  createListing,
+  uploadListingImages,
+  filterListings,
+} from "../../services/api";
+import { FaCamera, FaTimes, FaImage, FaPlus, FaTrash, FaGraduationCap, FaLink, FaAward, FaClock, FaCloudUploadAlt } from "react-icons/fa";
 import "../../css/adCreation.css";
 
 const AdCreationWizard = () => {
@@ -39,7 +46,16 @@ const AdCreationWizard = () => {
   const [selectedFiles, setSelectedFiles] = useState([]); // [File, File, ...]
   const [previews, setPreviews] = useState([]); // [url, url, ...]
 
-  // Sayfa ilk yüklendiğinde dilleri ve şehirleri çek
+  // --- DİPLOMA VE SERTİFİKA STATE'LERİ ---
+  const [diplomas, setDiplomas] = useState([]);
+  const [showDiplomaForm, setShowDiplomaForm] = useState(false);
+  const [newDiploma, setNewDiploma] = useState({ title: "", institution: "", date: "", link: "", image: null });
+
+  const [certificates, setCertificates] = useState([]);
+  const [showCertForm, setShowCertForm] = useState(false);
+  const [newCert, setNewCert] = useState({ title: "", organization: "", date: "", link: "", image: null });
+
+  // Sayfa ilk yüklendiğinde dilleri ve şehirleri çek ve localStorage'dan mevcut belgeleri yükle
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
@@ -47,13 +63,14 @@ const AdCreationWizard = () => {
           getLanguages(),
           getCities(),
         ]);
-        // Backend standart dönüş modeli gereği datalar `res.data` içerisinde,
-        // ancak direkt dizi dönüyorsa `res.data` kullanılır.
-        const langData = langRes.data?.data || langRes.data || [];
-        const cityData = cityRes.data?.data || cityRes.data || [];
-
-        setLanguages(langData);
-        setCities(cityData);
+        setLanguages(Array.isArray(langRes) ? langRes : []);
+        setCities(Array.isArray(cityRes) ? cityRes : []);
+        
+        // Mevcut belgeleri yükle
+        const savedDiplomas = localStorage.getItem("translator_diplomas");
+        const savedCerts = localStorage.getItem("translator_certificates");
+        if (savedDiplomas) setDiplomas(JSON.parse(savedDiplomas));
+        if (savedCerts) setCertificates(JSON.parse(savedCerts));
       } catch (error) {
         console.error("Başlangıç verileri yüklenirken hata:", error);
       } finally {
@@ -62,6 +79,61 @@ const AdCreationWizard = () => {
     };
     fetchInitialData();
   }, []);
+
+  const saveDocsToStorage = (type, data) => {
+    localStorage.setItem(`translator_${type}`, JSON.stringify(data));
+  };
+
+  const handleAddDiploma = () => {
+    if (newDiploma.title && newDiploma.institution) {
+      const updated = [...diplomas, { ...newDiploma, id: Date.now(), status: "Pending" }];
+      setDiplomas(updated);
+      saveDocsToStorage("diplomas", updated);
+      setNewDiploma({ title: "", institution: "", date: "", link: "", image: null });
+      setShowDiplomaForm(false);
+    }
+  };
+
+  const handleDeleteDiploma = (id) => {
+    const updated = diplomas.filter(d => d.id !== id);
+    setDiplomas(updated);
+    saveDocsToStorage("diplomas", updated);
+  };
+
+  const handleAddCert = () => {
+    if (newCert.title && newCert.organization) {
+      const updated = [...certificates, { ...newCert, id: Date.now(), status: "Pending" }];
+      setCertificates(updated);
+      saveDocsToStorage("certificates", updated);
+      setNewCert({ title: "", organization: "", date: "", link: "", image: null });
+      setShowCertForm(false);
+    }
+  };
+
+  const handleDeleteCert = (id) => {
+    const updated = certificates.filter(c => c.id !== id);
+    setCertificates(updated);
+    saveDocsToStorage("certificates", updated);
+  };
+
+  const handleDocFileChange = (e, type) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) { // 2MB Limit for demo
+        alert("Dosya boyutu çok büyük (Max 2MB)");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (type === "diploma") {
+          setNewDiploma({ ...newDiploma, image: reader.result });
+        } else {
+          setNewCert({ ...newCert, image: reader.result });
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   // Input değişimlerini yakalama
   const handleChange = (e) => {
@@ -99,7 +171,7 @@ const AdCreationWizard = () => {
     setSelectedFiles(newFiles);
 
     // Previews
-    const newPreviews = files.map(file => URL.createObjectURL(file));
+    const newPreviews = files.map((file) => URL.createObjectURL(file));
     setPreviews([...previews, ...newPreviews]);
   };
 
@@ -194,18 +266,38 @@ const AdCreationWizard = () => {
       console.log("İlan Gönderiliyor:", payload);
 
       const response = await createListing(payload);
-      
-      // Backend'den ID'yi al
-      const listingData = response.data?.data || response.data;
-      const listingId = listingData?.id;
+
+      // Backend oluşturulan ilanın ID'sini dönmediği için (response.id = null),
+      // ilanı anında filtreleme ile geri bularak ID'sini alıyoruz:
+      let listingId = response?.id ?? null;
+
+      if (!listingId) {
+        // Oluşturduğumuz ilanı başlığına göre bulalım
+        const fetchFilters = await filterListings({
+          searchKeyword: payload.title,
+          page: 1,
+          pageSize: 10,
+        });
+
+        // Gelen listede bizim ilanı, Başlık ve Fiyat eşleşmesinden tespit edelim
+        const itemsList = fetchFilters?.items || (Array.isArray(fetchFilters) ? fetchFilters : []);
+        const matchingListing = itemsList.find(
+          (l) => l.title === payload.title && l.price === payload.price,
+        );
+        listingId = matchingListing?.id || null;
+      }
 
       // Fotoğraflar varsa yükle
       if (listingId && selectedFiles.length > 0) {
         const imageFormData = new FormData();
-        selectedFiles.forEach(file => {
+        selectedFiles.forEach((file) => {
           imageFormData.append("files", file);
         });
         await uploadListingImages(listingId, imageFormData);
+      } else if (selectedFiles.length > 0 && !listingId) {
+        console.warn(
+          "İlan oluşturuldu fakat ID'si bulunamadığı için fotoğraflar yüklenemedi!",
+        );
       }
 
       alert("İlanınız başarıyla oluşturuldu!");
@@ -213,17 +305,15 @@ const AdCreationWizard = () => {
     } catch (error) {
       console.error("İlan oluşturulurken hata:", error);
 
-      // Backend'den gelen spesifik hata mesajlarını konsola yazdır
+      let backendMsg = "Bilinmeyen sunucu hatası";
       if (error.response && error.response.data) {
-        console.error(
-          "Backend Hata Detayı:",
-          JSON.stringify(error.response.data, null, 2),
-        );
+        backendMsg = error.response.data.message || error.response.data.title || JSON.stringify(error.response.data);
+        console.error("Backend Hata Detayı:", JSON.stringify(error.response.data, null, 2));
+      } else {
+        backendMsg = error.message;
       }
 
-      alert(
-        "Bir hata oluştu. Lütfen konsolu kontrol edin (F12) ve hatanın detayını atın.",
-      );
+      alert(`İlan oluşturulurken bir hata oluştu:\n\n${backendMsg}\n\nLütfen formu kontrol edin veya backend ekibine bu mesajı iletin.`);
     } finally {
       setIsSubmitting(false);
     }
@@ -231,7 +321,8 @@ const AdCreationWizard = () => {
 
   // -- RENDER EDİLECEK ADIMLAR (STEPS) --
 
-  const renderStep1 = () => (
+  const renderStep1 = () => {
+    return (
     <div className="ad-form-content">
       <h3 style={{ marginBottom: "20px" }}>Dil ve Bölge Tercihleriniz</h3>
 
@@ -308,9 +399,11 @@ const AdCreationWizard = () => {
         )}
       </div>
     </div>
-  );
+    );
+  };
 
-  const renderStep2 = () => (
+  const renderStep2 = () => { 
+    return (
     <div className="ad-form-content">
       <h3 style={{ marginBottom: "20px" }}>Hizmetinizin Detayları</h3>
 
@@ -439,28 +532,36 @@ const AdCreationWizard = () => {
         <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <FaImage /> İlan Fotoğrafları (Opsiyonel - Max 10)
         </label>
-        <div 
-          className="image-upload-grid" 
-          style={{ 
-            display: "grid", 
-            gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", 
-            gap: "15px", 
+        <div
+          className="image-upload-grid"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))",
+            gap: "15px",
             marginTop: "10px",
             padding: "20px",
             border: "2px dashed #e2e8f0",
             borderRadius: "12px",
-            background: "#f8fafc"
+            background: "#f8fafc",
           }}
         >
           {previews.map((url, index) => (
-            <div key={index} style={{ position: "relative", width: "100px", height: "100px" }}>
-              <img 
-                src={url} 
-                alt="preview" 
-                style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "8px" }} 
+            <div
+              key={index}
+              style={{ position: "relative", width: "100px", height: "100px" }}
+            >
+              <img
+                src={url}
+                alt="preview"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  borderRadius: "8px",
+                }}
               />
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => removeFile(index)}
                 style={{
                   position: "absolute",
@@ -476,48 +577,241 @@ const AdCreationWizard = () => {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  boxShadow: "0 2px 5px rgba(0,0,0,0.2)"
+                  boxShadow: "0 2px 5px rgba(0,0,0,0.2)",
                 }}
               >
                 <FaTimes size={12} />
               </button>
             </div>
           ))}
-          
+
           {selectedFiles.length < 10 && (
-            <label 
-              style={{ 
-                width: "100px", 
-                height: "100px", 
-                border: "2px dashed #cbd5e0", 
-                borderRadius: "8px", 
-                display: "flex", 
-                flexDirection: "column", 
-                alignItems: "center", 
-                justifyContent: "center", 
+            <label
+              style={{
+                width: "100px",
+                height: "100px",
+                border: "2px dashed #cbd5e0",
+                borderRadius: "8px",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
                 cursor: "pointer",
                 color: "#64748b",
                 fontSize: "0.8rem",
-                gap: "5px"
+                gap: "5px",
               }}
             >
               <FaCamera size={20} />
               Ekle
-              <input 
-                type="file" 
-                multiple 
-                accept="image/*" 
-                style={{ display: "none" }} 
-                onChange={handleFileChange} 
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                style={{ display: "none" }}
+                onChange={handleFileChange}
               />
             </label>
           )}
         </div>
       </div>
-    </div>
-  );
 
-  const renderStep3 = () => (
+      {/* DİPLOMA VE SERTİFİKA EKLEME ALANI (YENİ) */}
+      <div style={{ marginTop: "30px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "20px" }}>
+        
+        {/* SOL: DİPLOMALAR */}
+        <div style={{ background: "#fff", padding: "20px", borderRadius: "12px", border: "1px solid #e2e8f0", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
+            <h4 style={{ margin: 0, display: "flex", alignItems: "center", gap: "8px", color: "#1e3a8a", fontSize: "1rem" }}>
+              <FaGraduationCap /> Akademik Diplomalar
+            </h4>
+            <button 
+              type="button" 
+              onClick={() => setShowDiplomaForm(true)}
+              style={{ background: "#3b82f6", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "6px", fontSize: "0.8rem", cursor: "pointer", fontWeight: "600" }}
+            >
+              <FaPlus /> Yeni Ekle
+            </button>
+          </div>
+
+          {showDiplomaForm && (
+            <div style={{ background: "#f0f7ff", padding: "15px", borderRadius: "8px", marginBottom: "15px", border: "1px dashed #3b82f6" }}>
+              <input 
+                placeholder="Diploma Adı (Örn: İngilizce Öğretmenliği)" 
+                className="form-control" 
+                style={{ marginBottom: "10px", fontSize: "0.9rem" }}
+                value={newDiploma.title}
+                onChange={(e) => setNewDiploma({...newDiploma, title: e.target.value})}
+              />
+              <input 
+                placeholder="Üniversite/Kurum" 
+                className="form-control" 
+                style={{ marginBottom: "10px", fontSize: "0.9rem" }}
+                value={newDiploma.institution}
+                onChange={(e) => setNewDiploma({...newDiploma, institution: e.target.value})}
+              />
+              <input 
+                placeholder="Belge/e-Devlet Linki (Opsiyonel)" 
+                className="form-control" 
+                style={{ marginBottom: "10px", fontSize: "0.9rem" }}
+                value={newDiploma.link}
+                onChange={(e) => setNewDiploma({...newDiploma, link: e.target.value})}
+              />
+              <div style={{ marginBottom: "10px" }}>
+                <label className="btn-wizard" style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "#e2e8f0", color: "#475569", padding: "8px 12px", borderRadius: "8px", cursor: "pointer", fontSize: "0.85rem", width: "100%", justifyContent: "center" }}>
+                  <FaCloudUploadAlt /> {newDiploma.image ? "Fotoğraf Değiştir" : "Diploma Fotoğrafı Ekle"}
+                  <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => handleDocFileChange(e, "diploma")} />
+                </label>
+                {newDiploma.image && (
+                  <div style={{ marginTop: "10px", textAlign: "center" }}>
+                    <img src={newDiploma.image} alt="preview" style={{ maxWidth: "100%", maxHeight: "100px", borderRadius: "8px", border: "1px solid #ddd" }} />
+                  </div>
+                )}
+              </div>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button type="button" onClick={handleAddDiploma} style={{ flex: 1, background: "#3b82f6", color: "#fff", border: "none", padding: "8px", borderRadius: "6px", cursor: "pointer", fontWeight: "600" }}>Kaydet</button>
+                <button type="button" onClick={() => { setShowDiplomaForm(false); setNewDiploma({...newDiploma, image: null}); }} style={{ flex: 1, background: "#94a3b8", color: "#fff", border: "none", padding: "8px", borderRadius: "6px", cursor: "pointer" }}>İptal</button>
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            {diplomas.map(dip => (
+              <div key={dip.id} className="certification-item blue" style={{ padding: "12px", fontSize: "0.85rem", justifyContent: "space-between", backgroundColor: "#f8fafc" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1 }}>
+                  {dip.image ? (
+                    <img src={dip.image} alt="dip" style={{ width: "40px", height: "40px", borderRadius: "6px", objectFit: "cover", border: "1px solid #bfdbfe" }} />
+                  ) : (
+                    <div className="cert-icon blue" style={{ width: "40px", height: "40px", fontSize: "1rem" }}>
+                      <FaGraduationCap />
+                    </div>
+                  )}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: "700", color: "#1e293b", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      {dip.title}
+                      {dip.link && <a href={dip.link} target="_blank" rel="noopener noreferrer"><FaLink size={12} color="#3b82f6" /></a>}
+                    </div>
+                    <div style={{ fontSize: "0.8rem", color: "#64748b" }}>{dip.institution}</div>
+                    <div style={{ fontSize: "0.75rem", color: "#3b82f6", display: "flex", alignItems: "center", gap: "4px", marginTop: "4px", fontWeight: "600" }}>
+                      <FaClock /> Onay Bekliyor
+                    </div>
+                  </div>
+                </div>
+                <FaTrash 
+                  style={{ color: "#ef4444", cursor: "pointer", opacity: "0.7", marginLeft: "10px" }} 
+                  onClick={() => handleDeleteDiploma(dip.id)} 
+                />
+              </div>
+            ))}
+            {diplomas.length === 0 && !showDiplomaForm && (
+              <div style={{ textAlign: "center", padding: "20px", color: "#94a3b8", border: "1px dashed #e2e8f0", borderRadius: "8px" }}>
+                <FaGraduationCap size={24} style={{ marginBottom: "8px", opacity: "0.5" }} />
+                <p style={{ fontSize: "0.85rem", margin: 0 }}>Eklenmiş diploma bulunmuyor.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* SAĞ: SERTİFİKALAR */}
+        <div style={{ background: "#fff", padding: "20px", borderRadius: "12px", border: "1px solid #e2e8f0", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
+            <h4 style={{ margin: 0, display: "flex", alignItems: "center", gap: "8px", color: "#b45309", fontSize: "1rem" }}>
+              <FaAward /> Uzmanlık Sertifikaları
+            </h4>
+            <button 
+              type="button" 
+              onClick={() => setShowCertForm(true)}
+              style={{ background: "#fbbf24", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "6px", fontSize: "0.8rem", cursor: "pointer", fontWeight: "600" }}
+            >
+              <FaPlus /> Yeni Ekle
+            </button>
+          </div>
+
+          {showCertForm && (
+            <div style={{ background: "#fffbeb", padding: "15px", borderRadius: "8px", marginBottom: "15px", border: "1px dashed #fbbf24" }}>
+              <input 
+                placeholder="Sertifika Adı (Örn: IELTS 8.5)" 
+                className="form-control" 
+                style={{ marginBottom: "10px", fontSize: "0.9rem" }}
+                value={newCert.title}
+                onChange={(e) => setNewCert({...newCert, title: e.target.value})}
+              />
+              <input 
+                placeholder="Veren Kurum" 
+                className="form-control" 
+                style={{ marginBottom: "10px", fontSize: "0.9rem" }}
+                value={newCert.organization}
+                onChange={(e) => setNewCert({...newCert, organization: e.target.value})}
+              />
+              <input 
+                placeholder="Sertifika Bağlantısı (Opsiyonel)" 
+                className="form-control" 
+                style={{ marginBottom: "10px", fontSize: "0.9rem" }}
+                value={newCert.link}
+                onChange={(e) => setNewCert({ ...newCert, link: e.target.value })}
+              />
+              <div style={{ marginBottom: "10px" }}>
+                <label className="btn-wizard" style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "#fef3c7", color: "#92400e", padding: "8px 12px", borderRadius: "8px", cursor: "pointer", fontSize: "0.85rem", width: "100%", justifyContent: "center" }}>
+                  <FaCloudUploadAlt /> {newCert.image ? "Fotoğraf Değiştir" : "Sertifika Fotoğrafı Ekle"}
+                  <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => handleDocFileChange(e, "certificate")} />
+                </label>
+                {newCert.image && (
+                  <div style={{ marginTop: "10px", textAlign: "center" }}>
+                    <img src={newCert.image} alt="preview" style={{ maxWidth: "100%", maxHeight: "100px", borderRadius: "8px", border: "1px solid #fcd34d" }} />
+                  </div>
+                )}
+              </div>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button type="button" onClick={handleAddCert} style={{ flex: 1, background: "#fbbf24", color: "#fff", border: "none", padding: "8px", borderRadius: "6px", cursor: "pointer", fontWeight: "600" }}>Kaydet</button>
+                <button type="button" onClick={() => { setShowCertForm(false); setNewCert({...newCert, image: null}); }} style={{ flex: 1, background: "#94a3b8", color: "#fff", border: "none", padding: "8px", borderRadius: "6px", cursor: "pointer" }}>İptal</button>
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            {certificates.map(cert => (
+              <div key={cert.id} className="certification-item gold" style={{ padding: "12px", fontSize: "0.85rem", justifyContent: "space-between", backgroundColor: "#fffbeb" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1 }}>
+                  {cert.image ? (
+                    <img src={cert.image} alt="cert" style={{ width: "40px", height: "40px", borderRadius: "6px", objectFit: "cover", border: "1px solid #fde68a" }} />
+                  ) : (
+                    <div className="cert-icon gold" style={{ width: "40px", height: "40px", fontSize: "1rem" }}>
+                      <FaAward />
+                    </div>
+                  )}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: "700", color: "#92400e", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      {cert.title}
+                      {cert.link && <a href={cert.link} target="_blank" rel="noopener noreferrer"><FaLink size={12} color="#fbbf24" /></a>}
+                    </div>
+                    <div style={{ fontSize: "0.8rem", color: "#b45309" }}>{cert.organization}</div>
+                    <div style={{ fontSize: "0.75rem", color: "#d97706", display: "flex", alignItems: "center", gap: "4px", marginTop: "4px", fontWeight: "600" }}>
+                      <FaClock /> Onay Bekliyor
+                    </div>
+                  </div>
+                </div>
+                <FaTrash 
+                  style={{ color: "#ef4444", cursor: "pointer", opacity: "0.7", marginLeft: "10px" }} 
+                  onClick={() => handleDeleteCert(cert.id)} 
+                />
+              </div>
+            ))}
+            {certificates.length === 0 && !showCertForm && (
+              <div style={{ textAlign: "center", padding: "20px", color: "#94a3b8", border: "1px dashed #fcd34d", borderRadius: "8px" }}>
+                <FaAward size={24} style={{ marginBottom: "8px", opacity: "0.5" }} />
+                <p style={{ fontSize: "0.85rem", margin: 0 }}>Eklenmiş sertifika bulunmuyor.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+      </div>
+    </div>
+    );
+  };
+
+  const renderStep3 = () => {
+    return (
     <div
       className="ad-form-content"
       style={{ textAlign: "center", padding: "40px 20px" }}
@@ -567,7 +861,8 @@ const AdCreationWizard = () => {
         </p>
       </div>
     </div>
-  );
+    );
+  };
 
   if (loadingInitial) {
     return (

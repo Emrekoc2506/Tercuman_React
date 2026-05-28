@@ -1,9 +1,5 @@
 import React, { useState, useEffect } from "react";
-import {
-  getTranslatorLanguages,
-  addTranslatorLanguage,
-  deleteTranslatorLanguage,
-} from "../../services/api";
+import { getLanguages } from "../../services/api";
 
 // ==============================================================================
 // LANGUAGE MANAGEMENT (DİL YÖNETİMİ)

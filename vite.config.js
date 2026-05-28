@@ -17,6 +17,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      "/images": {
+        target: "http://localhost:5216", // Backend statik dosyalar (resimler)
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
 });

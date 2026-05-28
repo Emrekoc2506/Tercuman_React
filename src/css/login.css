@@ -14,10 +14,10 @@
 
 /* Beyaz Kart Tasarımı */
 .auth-container {
-  width: 380px;
+  width: 570px;
   background: #ffffff;
-  border-radius: 35px;
-  padding: 40px 35px;
+  border-radius: 42px;
+  padding: 50px 52px;
   box-shadow: 0 15px 40px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
@@ -260,15 +260,7 @@
   color: #fff;
 }
 
-/* Twitter (Mavi) */
-.wrapper .twitter::after {
-  background-color: #1da1f2;
-}
-.wrapper .twitter:hover .tooltip,
-.wrapper .twitter:hover .tooltip::before {
-  background: #1da1f2;
-  color: #fff;
-}
+/* (Twitter kaldırıldı - sadece Google ve Apple aktif) */
 
 /* Keyframes */
 @keyframes bg-pos {
@@ -279,4 +271,28 @@
 @keyframes overflow-toggle {
   0% { overflow: hidden; }
   100% { overflow: visible; }
+}
+
+/* Mobile Responsive */
+@media (max-width: 600px) {
+  .auth-container {
+    width: 92%;
+    padding: 40px 25px;
+    border-radius: 30px;
+  }
+  .heading {
+    font-size: 24px;
+    margin-bottom: 20px;
+  }
+}
+
+@media (max-width: 400px) {
+  .auth-container {
+    padding: 30px 15px;
+  }
+  .wrapper .icon {
+    width: 45px;
+    height: 45px;
+    margin: 0 5px;
+  }
 }

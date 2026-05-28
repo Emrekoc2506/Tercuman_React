@@ -1,14 +1,19 @@
 import React from "react";
-import { Outlet, Link, useNavigate } from "react-router-dom";
-
-// ==============================================================================
-// ADMIN LAYOUT (YÖNETİCİ TEMASI)
-// ==============================================================================
-// Bu düzen, sadece Yöneticiler giriş yaptığında görünecek.
-// Sol tarafta yönetim menüsü ve sağda içerik alanı.
+import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
+import { 
+  FaTachometerAlt, 
+  FaUsers, 
+  FaEnvelope, 
+  FaChartBar, 
+  FaSignOutAlt,
+  FaHome,
+  FaShieldAlt
+} from "react-icons/fa";
+import "../css/dashboard_modern.css";
 
 const AdminLayout = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -16,44 +21,49 @@ const AdminLayout = () => {
     navigate("/login");
   };
 
+  const navItems = [
+    { path: "/", label: "Siteden Çık", icon: <FaHome /> },
+    { path: "/admin/dashboard", label: "Yönetici Paneli", icon: <FaTachometerAlt /> },
+    { path: "/admin/users", label: "Kullanıcı Yönetimi", icon: <FaUsers /> },
+    { path: "/admin/messages", label: "Destek Mesajları", icon: <FaEnvelope /> },
+    { path: "/admin/reports", label: "Şikayetler", icon: <FaShieldAlt /> },
+  ];
+
   return (
-    <div style={{ display: "flex", minHeight: "100vh" }}>
-      {/* SOL MENÜ (SIDEBAR) */}
-      <aside
-        style={{
-          width: "250px",
-          background: "#333",
-          color: "#fff",
-          padding: "20px",
-        }}
-      >
-        <h3>Yönetici Paneli</h3>
-        <ul style={{ listStyle: "none", padding: 0 }}>
-          <li style={{ margin: "10px 0" }}>
-            <Link to="/admin/dashboard" style={{ color: "#fff" }}>
-              Dashboard
-            </Link>
-          </li>
-          <li style={{ margin: "10px 0" }}>
-            <Link to="/admin/users" style={{ color: "#fff" }}>
-              Kullanıcılar
-            </Link>
-          </li>
-          <li style={{ margin: "10px 0" }}>
-            <Link to="/admin/messages" style={{ color: "#fff" }}>
-              Mesajlar
-            </Link>
-          </li>
-          <li style={{ marginTop: "20px" }}>
-            <button onClick={handleLogout} style={{ color: "orange" }}>
-              Çıkış Yap
-            </button>
-          </li>
-        </ul>
+    <div className="dashboard-container">
+      {/* MODERN SIDEBAR */}
+      <aside className="modern-sidebar">
+        <div className="sidebar-logo">
+          <FaShieldAlt style={{ color: "#fbbf24" }} />
+          <span>Admin Panel</span>
+        </div>
+
+        <nav className="sidebar-nav">
+          <ul style={{ listStyle: "none", padding: 0 }}>
+            {navItems.map((item) => (
+              <li key={item.path} className="nav-item">
+                <Link
+                  to={item.path}
+                  className={`nav-link ${location.pathname === item.path ? "active" : ""}`}
+                >
+                  {item.icon}
+                  <span>{item.label}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
+        <div className="sidebar-footer">
+          <button onClick={handleLogout} className="nav-link" style={{ border: "none", background: "none", width: "100%", cursor: "pointer", color: "#ef4444" }}>
+            <FaSignOutAlt />
+            <span>Güvenli Çıkış</span>
+          </button>
+        </div>
       </aside>
 
-      {/* SAĞ İÇERİK ALANI */}
-      <main style={{ flex: 1, padding: "20px" }}>
+      {/* MAIN CONTENT AREA */}
+      <main className="main-content">
         <Outlet />
       </main>
     </div>

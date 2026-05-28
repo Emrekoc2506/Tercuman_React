@@ -7,38 +7,72 @@ import {
   getTranslatorNotifications,
   markNotificationAsRead,
 } from "../services/api";
+import {
+  FaFacebookF,
+  FaTwitter,
+  FaInstagram,
+  FaLinkedinIn,
+  FaBars,
+  FaTimes,
+} from "react-icons/fa";
+import chatService from "../services/chatService"; // SignalR dinlemek için
 
 function Header() {
   const navigate = useNavigate();
-
-  // Kullanıcının giriş yapıp yapmadığını kontrol ediyoruz.
-  // Kullanıcının giriş yapıp yapmadığını kontrol ediyoruz.
   const token = localStorage.getItem("token");
 
-  // ==========================================
-  // BİLDİRİM İŞLEMLERİ STATE & FONKSİYONLAR
-  // ==========================================
-  const [notifications, setNotifications] = useState([]); // Gelen bildirimleri tutar
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false); // Çana tıklanınca menüyü açıp kapatma
+  const [notifications, setNotifications] = useState([]);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // Mobil menü state'i
 
   useEffect(() => {
+    let isMounted = true;
+
     if (token) {
       fetchNotifications();
+
+      // Anlık SignalR bağlantısını başlat (eğer başlamadıysa) ve dinle
+      const connectAndListen = async () => {
+        try {
+          await chatService.startConnection();
+        } catch (err) {
+          console.error("SignalR Header bağlantı hatası:", err);
+        }
+      };
+
+      const handleNewNotification = (message) => {
+        if (!isMounted) return;
+        // Gelen SignalR mesajını bildirim objesine çevir
+        const newNotif = {
+          messageId: message.id, // NotificationController'daki ID yapısı
+          senderName: message.senderName || "Yeni Mesaj",
+          content: message.text,
+          sentAt: message.createdDate || new Date().toISOString(),
+          isRead: false,
+        };
+        // Var olanların en tepesine ekle
+        setNotifications((prev) => [newNotif, ...prev]);
+      };
+
+      connectAndListen();
+      chatService.onMessageReceived(handleNewNotification);
+
+      return () => {
+        isMounted = false;
+        chatService.removeMessageCallback(handleNewNotification);
+      };
     }
   }, [token]);
 
   const fetchNotifications = async () => {
     try {
       const res = await getTranslatorNotifications();
-      if (res.data.success) {
-        setNotifications(res.data.data || []);
-      }
+      // Backend api => { unreadCount: X, items: [...] } dönüyor.
+      // Interceptor da success: true durumunda bunu direkt açtığı için res, bu objenin kendisi.
+      const list = Array.isArray(res) ? res : res?.items || [];
+      setNotifications(list);
     } catch (error) {
-      if (error.response?.status === 401) {
-        console.warn("Bildirimler yetkisiz erişim nedeniyle (401) atlanıyor.");
-      } else {
-        console.error("Bildirimler alınamadı:", error);
-      }
+      console.error("Bildirimler yüklenirken hata:", error);
     }
   };
 
@@ -72,6 +106,10 @@ function Header() {
     window.location.reload(); // Header'ın güncellenmesi için sayfayı yenile (Basit çözüm)
   };
 
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen((prev) => !prev);
+  };
+
   // Herkes aynı panele (Dashboard) gidiyor
   const getDashboardPath = () => {
     return "/user/dashboard";
@@ -88,8 +126,8 @@ function Header() {
         }}
       >
         {/* SOL: LOGO KISMI */}
-        <div className="logo">
-          <Link to="/">
+        <div className="logo" style={{ zIndex: 1200 }}>
+          <Link to="/" onClick={() => setIsMobileMenuOpen(false)}>
             MiftahTEA
             <span>
               <img src={logo} alt="Logo" width="40" height="40" />
@@ -97,37 +135,53 @@ function Header() {
           </Link>
         </div>
 
+        {/* MOBİL MENÜ BUTONU (HAMBURGER) */}
+        <button
+          className="mobile-menu-toggle"
+          onClick={toggleMobileMenu}
+          aria-label="Menüyü Aç/Kapat"
+        >
+          {isMobileMenuOpen ? <FaTimes /> : <FaBars />}
+        </button>
+
         {/* ORTA: MENÜ KISMI */}
-        <nav className="nav-menu">
-          <ul>
+        <nav className={`nav-menu ${isMobileMenuOpen ? "active" : ""}`}>
+          <ul onClick={() => setIsMobileMenuOpen(false)}>
             <li>
               <Link to="/">Anasayfa</Link>
             </li>
-            <li className="nav-item has-dropdown">
-              <Link to="#">
-                UZMANLIK ALANLARI <span className="arrow-down">▾</span>
-              </Link>
-              <ul className="dropdown-menu">
-                <li>
-                  <Link to="#">İngilizce</Link>
-                </li>
-                <li>
-                  <Link to="#">Almanca</Link>
-                </li>
-                <li>
-                  <Link to="#">Fransızca</Link>
-                </li>
-                <li>
-                  <Link to="#">İspanyolca</Link>
-                </li>
-                <li>
-                  <Link to="#">İtalyanca</Link>
-                </li>
-              </ul>
+            <li>
+              <Link to="/about">Hakkında</Link>
+            </li>
+            <li>
+              <Link to="/services">Hizmetlerimiz</Link>
             </li>
             <li>
               <Link to="/contact">İletişim</Link>
             </li>
+
+            {/* Mobil Menü Ek Butonları - Sadece Mobilde Görünür Olması İçin Class eklenebilir */}
+            {!token ? (
+              <>
+                <li className="mobile-only-link">
+                  <Link to="/login">Giriş Yap</Link>
+                </li>
+                <li className="mobile-only-link">
+                  <Link to="/register">Kayıt Ol</Link>
+                </li>
+              </>
+            ) : (
+              <>
+                <li className="mobile-only-link">
+                  <Link to="/user/dashboard">Hesabım</Link>
+                </li>
+                <li className="mobile-only-link">
+                  <span onClick={handleLogout} style={{ cursor: "pointer", color: "#dc3545" }}>
+                    Çıkış Yap
+                  </span>
+                </li>
+              </>
+            )}
           </ul>
         </nav>
 

@@ -1,0 +1,158 @@
+/* services.css - MiftahTEA Hizmetlerimiz Sayfası */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+
+:root {
+  --services-primary: #4f46e5;
+  --services-secondary: hsl(220, 41%, 16%);
+  --services-bg: #f9fafb;
+  --services-text: #1f2937;
+  --services-text-light: #6b7280;
+}
+
+.services-page {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--services-bg);
+  color: var(--services-text);
+  min-height: 100vh;
+}
+
+/* Hero Section */
+.services-hero {
+  background: linear-gradient(135deg, var(--services-primary) 0%, var(--services-secondary) 100%);
+  padding: 100px 20px;
+  text-align: center;
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+
+.services-hero h1 {
+  font-size: 3.5rem;
+  font-weight: 800;
+  margin-bottom: 20px;
+  animation: slideDown 0.8s ease;
+}
+
+.services-hero p {
+  font-size: 1.25rem;
+  max-width: 700px;
+  margin: 0 auto;
+  opacity: 0.9;
+  font-weight: 300;
+  animation: fadeIn 1s ease 0.3s both;
+}
+
+/* Grid Layout */
+.services-container {
+  max-width: 1200px;
+  margin: -60px auto 100px;
+  padding: 0 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 30px;
+  position: relative;
+  z-index: 10;
+}
+
+.service-card {
+  background: white;
+  padding: 40px;
+  border-radius: 20px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #f3f4f6;
+}
+
+.service-card:hover {
+  transform: translateY(-15px);
+  box-shadow: 0 20px 40px rgba(79, 70, 229, 0.1);
+  border-color: var(--services-primary);
+}
+
+.service-icon-wrapper {
+  width: 70px;
+  height: 70px;
+  background: #eef2ff;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 25px;
+  color: var(--services-primary);
+  font-size: 2rem;
+  transition: all 0.3s ease;
+}
+
+.service-card:hover .service-icon-wrapper {
+  background: var(--services-primary);
+  color: white;
+}
+
+.service-card h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 15px;
+}
+
+.service-card p {
+  color: var(--services-text-light);
+  line-height: 1.6;
+  margin-bottom: 20px;
+  flex: 1;
+}
+
+.service-features {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.service-features li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  color: var(--services-text-light);
+  margin-bottom: 8px;
+}
+
+.service-features li::before {
+  content: '✓';
+  color: var(--services-primary);
+  font-weight: bold;
+}
+
+/* Animations */
+@keyframes slideDown {
+  from { transform: translateY(-30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .services-hero {
+    padding: 60px 15px;
+  }
+  .services-hero h1 { font-size: 2.2rem; }
+  .services-hero p { font-size: 1.1rem; }
+  .services-container { grid-template-columns: 1fr; margin-top: -30px; padding: 0 15px; }
+  .service-card {
+    padding: 25px;
+  }
+}
+
+@media (max-width: 480px) {
+  .services-hero h1 { font-size: 1.8rem; }
+  .service-icon-wrapper {
+    width: 60px;
+    height: 60px;
+    font-size: 1.5rem;
+  }
+}

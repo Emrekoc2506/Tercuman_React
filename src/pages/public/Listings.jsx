@@ -43,25 +43,36 @@ const Listings = () => {
     fetchInitialData();
   }, []);
 
+  // 🔄 Sayfa yüklendiğinde temel verileri çek
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      // Promise.all kullanarak çoklu API isteklerini aynı anda (paralel) yapıyoruz
-      const [langRes, cityRes, listingsRes] = await Promise.all([
+      // Dilleri, Şehirleri ve ilk ilanları paralel olarak çek
+      const [languagesData, citiesData, pagedData] = await Promise.all([
         getLanguages(),
         getCities(),
-        getListings(1, pageSize), // Filtresiz tüm ilanları 1. sayfadan getir
+        getListings(1, pageSize),
       ]);
 
-      setLanguages(langRes.data?.data || langRes.data || []);
-      setCities(cityRes.data?.data || cityRes.data || []);
+      setLanguages(languagesData || []);
+      setCities(citiesData || []);
 
-      const listingsData = listingsRes.data?.data || listingsRes.data || [];
-      setListings(listingsData);
+      // İlanları ve sayfalama bilgilerini set et
+      const items = pagedData?.items || [];
+      const total = pagedData?.totalCount || items.length;
 
-      // Toplam sayfa sayısını hesapla (Eğer backend totalCount dönüyorsa)
-      const total = listingsRes.data?.totalCount || listingsData.length;
+      // Cache busting: Fotoğraf URL'lerine zaman damgası ekle
+      const timestamp = Date.now();
+      const updatedItems = items.map((item) => ({
+        ...item,
+        translatorPhotoUrl: item.translatorPhotoUrl
+          ? `${item.translatorPhotoUrl}?v=${timestamp}`
+          : item.translatorPhotoUrl,
+      }));
+
+      setListings(updatedItems);
       setTotalPages(Math.ceil(total / pageSize) || 1);
+      setPage(1); // İlk yüklemede her zaman 1. sayfayı göster
     } catch (error) {
       console.error("Veriler alınırken hata:", error);
     } finally {
@@ -80,35 +91,38 @@ const Listings = () => {
   const applyFilters = async (targetPage = 1) => {
     setLoading(true);
     try {
-      // Boş olmayan filtreleri bir obje olarak ayır (Backend sadece dolu olanları görsün)
       const activeFilters = {};
       Object.keys(filters).forEach((key) => {
         if (filters[key]) activeFilters[key] = filters[key];
       });
 
-      console.log(
-        `Filtrelerle arama yapılıyor (Sayfa: ${targetPage}):`,
-        activeFilters,
-      );
-
-      let response;
+      let pagedData;
       if (Object.keys(activeFilters).length > 0) {
-        response = await filterListings({
+        pagedData = await filterListings({
           ...activeFilters,
           page: targetPage,
           pageSize,
         });
       } else {
-        response = await getListings(targetPage, pageSize);
+        pagedData = await getListings(targetPage, pageSize);
       }
 
-      const listingsData = response.data?.data || response.data || [];
-      setListings(listingsData);
+      // Interceptor veriyi zaten açtı: items, totalCount...
+      const items = pagedData?.items || [];
+      const total = pagedData?.totalCount || items.length;
 
-      // Toplam sayfa sayısını güncelle
-      const total = response.data?.totalCount || listingsData.length;
+      // Cache busting: Fotoğraf URL'lerine zaman damgası ekle
+      const timestamp = Date.now();
+      const updatedItems = items.map((item) => ({
+        ...item,
+        translatorPhotoUrl: item.translatorPhotoUrl
+          ? `${item.translatorPhotoUrl}?v=${timestamp}`
+          : item.translatorPhotoUrl,
+      }));
+
+      setListings(updatedItems);
       setTotalPages(Math.ceil(total / pageSize) || 1);
-      setPage(targetPage); // Mevcut sayfayı güncelle
+      setPage(targetPage);
     } catch (error) {
       console.error("İlanlar filtrelenirken hata:", error);
     } finally {
@@ -173,32 +187,33 @@ const Listings = () => {
         <div className="filter-group city-searchable-container">
           <label>Şehir</label>
           <div className="custom-city-dropdown">
-            <div 
+            <div
               className={`city-active-tab ${isCityOpen ? "open" : ""}`}
               onClick={() => setIsCityOpen(!isCityOpen)}
             >
-              {filters.cityId 
-                ? cities.find(c => c.id === filters.cityId)?.name || "Şehir Seçiliyor..."
+              {filters.cityId
+                ? cities.find((c) => c.id === filters.cityId)?.name ||
+                  "Şehir Seçiliyor..."
                 : "Tüm Şehirler"}
               <span className="dropdown-arrow">▼</span>
             </div>
 
             {isCityOpen && (
               <div className="city-dropdown-content">
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   autoFocus
-                  placeholder="Şehir ara..." 
+                  placeholder="Şehir ara..."
                   className="city-search-input"
                   value={citySearch}
                   onChange={(e) => setCitySearch(e.target.value)}
                   onClick={(e) => e.stopPropagation()}
                 />
                 <div className="city-options-list">
-                  <div 
-                    className="city-option" 
+                  <div
+                    className="city-option"
                     onClick={() => {
-                      setFilters(prev => ({ ...prev, cityId: "" }));
+                      setFilters((prev) => ({ ...prev, cityId: "" }));
                       setIsCityOpen(false);
                       setCitySearch("");
                     }}
@@ -206,13 +221,15 @@ const Listings = () => {
                     Tüm Şehirler
                   </div>
                   {cities
-                    .filter(c => c.name.toLowerCase().includes(citySearch.toLowerCase()))
+                    .filter((c) =>
+                      c.name.toLowerCase().includes(citySearch.toLowerCase()),
+                    )
                     .map((c) => (
-                      <div 
-                        key={c.id} 
+                      <div
+                        key={c.id}
                         className={`city-option ${filters.cityId === c.id ? "selected" : ""}`}
                         onClick={() => {
-                          setFilters(prev => ({ ...prev, cityId: c.id }));
+                          setFilters((prev) => ({ ...prev, cityId: c.id }));
                           setIsCityOpen(false);
                           setCitySearch("");
                         }}
@@ -332,19 +349,38 @@ const Listings = () => {
                   className="listing-card"
                   onClick={() => goToDetail(listing.id)}
                 >
-                  {/* Profil / İlan Görseli Kısmı (Backend'den imageURL dönüyorsa kullanılır, yoksa default resim) */}
+                  {/* Profil / İlan Görseli Kısmı */}
                   <div className="card-image">
-                    {/* Varsayılan Avatar (Placeholder) */}
-                    <span className="placeholder-icon">👤</span>
+                    {listing.translatorPhotoUrl ? (
+                      <img
+                        src={listing.translatorPhotoUrl}
+                        alt={listing.translatorName}
+                        onError={(e) => {
+                          e.target.style.display = "none";
+                          e.target.nextSibling.style.display = "flex";
+                        }}
+                      />
+                    ) : null}
+                    <span
+                      className="placeholder-icon"
+                      style={{
+                        display: listing.translatorPhotoUrl ? "none" : "flex",
+                      }}
+                    >
+                      👤
+                    </span>
+
+                    {/* İlan Numarası Rozeti (Yeni) */}
+                    <div className="listing-no-badge">#{listing.listingNo}</div>
                   </div>
 
                   {/* İlan Bilgileri Ksımı */}
                   <div className="card-body">
                     <h4 className="card-title">{listing.title}</h4>
 
-                    {/* Çevirmen adı vb. backend entity'sinden 'User.FullName' olarak gelirse */}
+                    {/* Çevirmen adı backend DTO'sundan 'translatorName' olarak geliyor */}
                     <p className="card-author">
-                      {listing.user?.fullName || "Bilinmeyen Çevirmen"}
+                      {listing.translatorName || "Bilinmeyen Çevirmen"}
                     </p>
 
                     {/* Hizmet Türü ve Şehir Etiketleri */}

@@ -15,85 +15,71 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// ==============================================================================
-// 2.1 YANIT (RESPONSE) INTERCEPTOR'I (Otomatik Refresh Token Ajanı)
-// ==============================================================================
-// API'den gelen cevapları dinler. Eğer 401 (Yetkisiz - Token Süresi Dolmuş) hatası gelirse,
-// arka planda sessizce yeni token alır ve yarım kalan isteği yeni token ile tekrar dener.
+// 2.2 YANIT (RESPONSE) INTERCEPTOR'I (ApiResponse Unwrapper & Error Handler)
 api.interceptors.response.use(
   (response) => {
-    // İstek başarılıysa cevabı aynen geri döndür
-    return response;
+    // Backend ApiResponse<T> sarmalayıcısı kullanıyor: { success, data, message, errors }
+    // Eğer cevap bu formattaysa direkt 'data' kısmını döndür ki sayfalar uğraşmasın.
+    if (
+      response.data &&
+      Object.prototype.hasOwnProperty.call(response.data, "success")
+    ) {
+      // Eğer backend sadece success:true döndüyse ve data yoksa undefined dönmemesi için:
+      return response.data.data !== undefined
+        ? response.data.data
+        : response.data;
+    }
+    return response.data || response;
   },
   async (error) => {
-    // Hata durumunda burası çalışır
     const originalRequest = error.config;
 
-    // Eğer hata 401 ise (yetki hatası/token bitmiş) VE bu isteği daha önce tekrar etmediysek (_retry bayrağı yoksa)
+    // 401 Yetki Hatası (Token Yenileme Mantığı)
     if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true; // Sonsuz döngüden kaçınmak için bu isteği "tekrarlanıyor" olarak işaretle
+      const token = localStorage.getItem("token");
+      // 🔥 MOCK TOKEN KONTROLÜ: Eğer mock token kullanıyorsak yenileme yapma ve yönlendirme
+      if (token && token.startsWith("mock-")) {
+        return Promise.reject(error);
+      }
+
+      originalRequest._retry = true;
 
       try {
-        // 1. Tarayıcının hafızasından mevcut Refresh Token'ı alıyoruz
         const currentRefreshToken = localStorage.getItem("refreshToken");
+        if (!currentRefreshToken) return Promise.reject(error);
 
-        if (!currentRefreshToken) {
-          // Eğer refresh token yoksa (silinmiş falan olabilir), hiçbir işlem yapamayız. Hatayı fırlatmaya devam et.
-          return Promise.reject(error);
-        }
+        // Kendi api instance'ımızı değil, axios'u direkt kullanıyoruz (döngü engelleme)
+        const res = await axios.post("/api/auth/refresh", {
+          refreshToken: currentRefreshToken,
+        });
 
-        console.log(
-          "Token süresi dolmuş. Refresh Token kullanılarak yeni Token alınıyor...",
-        );
+        const responseData = res.data?.data || res.data;
+        const newAccessToken = responseData?.accessToken;
 
-        // 2. Yeni token almak için backend'in yenileme (refresh) servisine istek atıyoruz
-        // NOT: Kendi 'api' instance'ımız yerine saf axios kullanarak atıyoruz ki, 401 hatası alırsa tekrar bu interceptor'a düşüp döngüye girmesin!
-        const res = await axios.post(
-          "/api/auth/refresh",
-          { refreshToken: currentRefreshToken },
-          {
-            headers: { "Content-Type": "application/json" },
-          },
-        );
-
-        if (res.data?.success) {
-          // 3. Backend'den yeni bir kısa süreli accessToken geldi!
-          const responseData = res.data.data || res.data;
-          const newAccessToken = responseData.accessToken;
-
-          if (newAccessToken) {
-            console.log("Yeni token başarıyla alındı ve güncellendi.");
-            // Yeni token'ı tarayıcının hafızasına kaydet (eski token'ın üzerine yazar)
-            localStorage.setItem("token", newAccessToken);
-
-            // 4. Yetki hatası alınarak yarım kalan asıl isteğin başlığını (Authorization) YENİ TOKEN ile değiştir
-            originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-
-            // 5. Asıl isteği baştan gönder. Kullanıcı hiçbir şey farketmez!
-            return api(originalRequest);
-          }
+        if (newAccessToken) {
+          localStorage.setItem("token", newAccessToken);
+          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+          return api(originalRequest);
         }
       } catch (refreshError) {
-        // EĞER REFRESH TOKEN DA SÜRESİNİ DOLDURDUYSA (örn. 7 gün geçmişse) veya GECERSİZSE
-        console.error(
-          "Refresh Token da süresini doldurmuş veya geçersiz! Lütfen tekrar giriş yapın.",
-          refreshError,
-        );
-
-        // Kullanıcının güvenliği için tarayıcıda tutulan eski ve geçersiz tüm verileri temizle
         localStorage.removeItem("token");
         localStorage.removeItem("refreshToken");
         localStorage.removeItem("role");
-
-        // Kullanıcıyı direkt giriş sayfasına yönlendir (oturumdan atıyoruz)
         window.location.href = "/login";
-
         return Promise.reject(refreshError);
       }
     }
 
-    // Gelen hata 401 değilse (mesela 500 server error veya 404 not found) hatayı fırlatmaya devam et
-    return Promise.reject(error);
+    // Hata mesajını daha okunabilir yap (ApiResponse içindeki message'ı önceliklendir)
+    const errorData = error.response?.data;
+    const errorMessage =
+      errorData?.message || error.message || "Bilinmeyen bir hata oluştu";
+
+    return Promise.reject({
+      ...error,
+      message: errorMessage,
+      details: errorData?.errors,
+    });
   },
 );
 
@@ -122,15 +108,26 @@ export const refreshToken = (token) =>
 // 🌍 PUBLIC (HERKESE AÇIK) İŞLEMLER
 // ==============================================================================
 
-// Çevirmenleri listeleme (Anasayfada vitrin için). Arama, filtreleme vb. parametreleri alabilir.
-// Endpoint: GET /public/translators
-export const getTranslators = (params) =>
-  api.get("/public/translators", { params });
+// Çevirmenleri listeleme (Anasayfada vitrin için).
+// NOT: Backend'de henüz /public/translators yok, bu yüzden /Listings kullanıyoruz.
+export const getTranslators = (params) => api.get("/Listings", { params });
 
 // Sayfalı ilan listesi getirir
 // Endpoint: GET /Listings
-export const getListings = (page = 1, pageSize = 10, sort = null) =>
-  api.get("/Listings", { params: { page, pageSize, sort } });
+export const getListings = async (page = 1, pageSize = 10, sort = null) => {
+  const data = await api.get("/Listings", {
+    params: { page, pageSize, sort },
+  });
+
+  // 'data' artık otomatik açılmış PagedResultDto: { items: [], totalCount: 0, ... }
+  if (data?.items && Array.isArray(data.items)) {
+    data.items.forEach((item) => {
+      // Değişik veri isimlerine karşı dirençli yapıyoruz
+      item.phoneNumber = item.phoneNumber || item.phone || "";
+    });
+  }
+  return data;
+};
 
 // İlanları filtreler (Dil, Şehir, Fiyat, Hizmet Türü vb.)
 // Endpoint: GET /Listings/filter
@@ -165,27 +162,48 @@ export const sendContactMessage = (data) => api.post("/public/contact", data);
 // Endpoint: GET /translator/dashboard
 export const getTranslatorDashboard = () => api.get("/translator/dashboard");
 
-// Çevirmenin kendine gelen mesajları listelemesi.
-// Endpoint: GET /translator/messages
-export const getTranslatorMessages = () => api.get("/translator/messages");
+// Konuşma listesini getirir.
+// Endpoint: GET /api/conversations
+export const getConversations = () => api.get("/conversations");
+
+// Yeni bir konuşma başlatır veya mevcut olanın ID'sini döner.
+// Endpoint: POST /api/conversations/start?receiverId={receiverId}
+export const startConversation = (receiverId) =>
+  api.post(`/conversations/start?receiverId=${receiverId}`);
+
+// Belirli bir konuşmanın mesajlarını listelemesi.
+// Endpoint: GET /api/messages/{conversationId}
+export const getTranslatorMessages = (conversationId) =>
+  api.get(`/messages/${conversationId}`);
 
 // ---------------------------------------------------------
 // YENİ EKLENEN PROFİL VE İLAN İŞLEMLERİ (1️⃣ Tercüman İlan Sistemi)
 // ---------------------------------------------------------
 
-// Çevirmenin kendi profil/ilan bilgilerini getirmesi. (Tercüman profili sekmesinde dolacak)
-// Endpoint: GET /translator/profile
-export const getTranslatorProfile = () => api.get("/translator/profile");
+// Çevirmenin kendi profil/ilan bilgilerini getirmesi. (Düzeltme: Backend /api/users/profile bekliyor)
+// Endpoint: GET /users/profile
+export const getTranslatorProfile = async () => {
+  const data = await api.get("/users/profile");
+  if (data) {
+    data.phoneNumber = data.phoneNumber || data.phone || "";
+  }
+  return data;
+};
 
-// Çevirmenin kendi profil bilgilerini oluşturması veya güncellemesi.
-// Endpoint: PUT /translator/profile
+// Çevirmenin kendi profil bilgilerini oluşturması veya güncellemesi. (Düzeltme: Backend /api/users/profile bekliyor)
+// Endpoint: PUT /users/profile
 export const updateTranslatorProfile = (data) =>
-  api.put("/translator/profile", data);
+  api.put("/users/profile", data);
 
-// Profil fotoğrafı yükleme.
-// Endpoint: POST /translator/profile/image
+// Şifre değiştirme.
+// Endpoint: POST /users/change-password
+export const changePassword = (data) =>
+  api.post("/users/change-password", data);
+
+// Profil fotoğrafı yükleme. (Düzeltme: Backend /api/users/profile/image bekliyor)
+// Endpoint: POST /users/profile/image
 export const uploadProfileImage = (formData) =>
-  api.post("/translator/profile/image", formData, {
+  api.post("/users/profile/image", formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
 
@@ -208,9 +226,9 @@ export const uploadListingImages = (listingId, formData) =>
 // Endpoint: GET /Notifications
 export const getTranslatorNotifications = () => api.get("/Notifications");
 
-// Endpoint: PUT /Notifications/{id}/read
-export const markNotificationAsRead = (id) =>
-  api.put(`/Notifications/${id}/read`);
+// Endpoint: PUT /Notifications/{messageId}/read (Düzeltme: Backend {messageId} bekliyor)
+export const markNotificationAsRead = (messageId) =>
+  api.put(`/Notifications/${messageId}/read`);
 
 // ---------------------------------------------------------
 // DİL İŞLEMLERİ
@@ -235,57 +253,78 @@ export const updateTranslatorLanguage = (data) =>
 export const deleteTranslatorLanguage = (id) =>
   api.delete(`/public/languages/${id}`);
 
+// İlan detayını getiren yardımcı (Eğer sarmalayıcıyı aşmak gerekirse diye)
+export const getListingDetail = (id) => api.get(`/Listings/${id}`);
+
 // ==============================================================================
 // 🛒 CUSTOMER (MÜŞTERİ) PANELİ İŞLEMLERİ (3️⃣ Favori Sistemi)
 // ==============================================================================
 
-// Müşterinin bir çevirmeni favorilerine eklemesi (Kalp ikonuna tıklanınca).
-// Endpoint: POST /customer/favorite/{translatorId}
-export const addFavoriteTranslator = (translatorId) =>
-  api.post(`/customer/favorite/${translatorId}`);
+// Müşterinin bir çevirmeni favorilerine eklemesi (Kalp ikonuna tıklanınca). (Düzeltme: Backend /api/Favorites/{listingId} bekliyor)
+// Endpoint: POST /Favorites/{listingId}
+export const addFavoriteTranslator = (listingId) =>
+  api.post(`/Favorites/${listingId}`, {});
 
-// Müşterinin bir çevirmeni favorilerinden çıkarması (Kalp tikini kaldırınca).
-// Endpoint: DELETE /customer/favorite/{translatorId}
-export const removeFavoriteTranslator = (translatorId) =>
-  api.delete(`/customer/favorite/${translatorId}`);
+// Müşterinin bir çevirmeni favorilerinden çıkarması (Kalp tikini kaldırınca). (Düzeltme: Backend /api/Favorites/{listingId} bekliyor)
+// Endpoint: DELETE /Favorites/{listingId}
+export const removeFavoriteTranslator = (listingId) =>
+  api.delete(`/Favorites/${listingId}`);
 
-// Müşterinin kendi favoriye eklediği tüm çevirmenlerin listesini getirmesi.
-// Endpoint: GET /customer/favorites
-export const getCustomerFavorites = () => api.get("/customer/favorites");
+// Müşterinin kendi favoriye eklediği tüm çevirmenlerin listesini getirmesi. (Düzeltme: Backend /api/Favorites bekliyor)
+// Endpoint: GET /Favorites
+export const getCustomerFavorites = async () => {
+  const data = await api.get("/Favorites");
+  if (Array.isArray(data)) {
+    data.forEach((item) => {
+      if (item) item.phoneNumber = item.phoneNumber || item.phone || "";
+    });
+  }
+  return data;
+};
 
-// Müşterinin kendi profil bilgilerini getirmesi.
-// Endpoint: GET /customer/profile (Backend CustomerController'da mevcut)
-export const getCustomerProfile = () => api.get("/customer/profile");
+// Müşterinin kendi profil bilgilerini getirmesi. (Düzeltme: Backend /api/users/profile kullanıyor)
+// Endpoint: GET /users/profile
+export const getCustomerProfile = async () => {
+  const data = await api.get("/users/profile");
+  if (data) {
+    data.phoneNumber = data.phoneNumber || data.phone || "";
+  }
+  return data;
+};
 
-// Müşterinin kendi profilini güncellemesi.
-// Endpoint: PUT /customer/profile (Backend CustomerController'da mevcut)
-export const updateCustomerProfile = (data) =>
-  api.put("/customer/profile", data);
+// Müşterinin kendi profilini güncellemesi. (Düzeltme: Backend /api/users/profile kullanıyor)
+// Endpoint: PUT /users/profile
+export const updateCustomerProfile = (data) => api.put("/users/profile", data);
 
 // ==============================================================================
-// 👑 ADMIN PANELİ İŞLEMLERİ
+// 👑 ADMIN PANELİ İŞLEMLERİ (Ayrı Katman Gereksinimleri)
 // ==============================================================================
 
 // Admin dashboard verilerini (genel istatistikler) getirir.
-// Endpoint: GET /admin/dashboard
-export const getAdminDashboard = () => api.get("/admin/dashboard");
+// Endpoint: GET /api/admin/stats
+export const getAdminDashboard = () => api.get("/admin/stats");
 
 // Sistemdeki tüm kullanıcıları listeler (Yönetim için).
-// Endpoint: GET /admin/users
+// Endpoint: GET /api/admin/users
 export const getAdminUsers = () => api.get("/admin/users");
 
-// Sistemdeki tüm mesajları görüntüler (Denetim için).
-// Endpoint: GET /admin/messages
-export const getAdminMessages = () => api.get("/admin/messages");
-
 // Bir kullanıcının rolünü değiştirir (Admin, Translator, Customer).
-// Endpoint: PUT /admin/users/change-role
-export const changeUserRole = (data) =>
-  api.put("/admin/users/change-role", data);
+// Endpoint: PUT /api/admin/users/role
+export const changeUserRole = (data) => api.put("/admin/users/role", data);
 
 // Bir kullanıcıyı aktif veya pasif duruma getirir (Banlama/Açma).
-// Endpoint: PUT /admin/users/toggle-active/{id}
+// Endpoint: PUT /api/admin/users/{id}/toggle-status
 export const toggleUserActiveStatus = (id) =>
-  api.put(`/admin/users/toggle-active/${id}`);
+  api.put(`/admin/users/${id}/toggle-status`);
+
+// 👑 ADMIN MESSAGES & REPORTS
+// Sistemdeki tüm mesajlaşmaları listeler (Audit).
+export const getAdminMessages = () => api.get("/admin/messages");
+
+// Tüm şikayet raporlarını listeler.
+export const getAllReports = () => api.get("/admin/reports");
+
+// Bir şikayeti çözüldü olarak işaretler.
+export const resolveReport = (id) => api.put(`/admin/reports/${id}/resolve`);
 
 export default api;

@@ -11,6 +11,10 @@ import {
 import ContactModal from "../../components/ContactModal"; // İletişim Modal bileşeni
 import Billboard from "../../components/Billboard"; // Hero/Banner alanı
 import { useNavigate } from "react-router-dom";
+import {
+  FaUser,
+  FaCheckCircle,
+} from "react-icons/fa";
 
 // ==============================================================================
 // HOME PAGE (ANASAYFA - ÇEVİRMEN LİSTELEME)
@@ -44,6 +48,7 @@ const Home = () => {
     city: "",
     serviceType: "",
     searchKeyword: "",
+    gender: "", // Cinsiyet filtresi eklendi
   });
 
   // Şehir seçimi için ek state'ler
@@ -89,16 +94,14 @@ const Home = () => {
   // Tüm dilleri backend'den çekip { id: isim } map'i oluşturur
   const fetchLanguages = async () => {
     try {
-      const res = await getLanguages();
-      const langs = res.data?.data || res.data || [];
+      const langs = await getLanguages();
       const map = {};
-      langs.forEach((l) => {
-        // Backend'den gelen alan adı name/languageName olabilir
+      (langs || []).forEach((l) => {
         map[l.id] = l.name || l.languageName || l.language || "?";
       });
       setLanguageMap(map);
-      setRawLanguages(langs);
-      return map; // Kullanılmak üzere döndür
+      setRawLanguages(langs || []);
+      return map;
     } catch (err) {
       console.error("Diller yüklenirken hata:", err);
       return {};
@@ -109,76 +112,63 @@ const Home = () => {
   const fetchTranslators = async () => {
     try {
       setLoading(true);
-      // Backend tarafında GET /api/public/translators olmadığı için geçici olarak (veya kalıcı olarak)
-      // GET /api/Listings (tüm ilanlar) endpointini çağırıyoruz.
-      const response = await getListings(1, 100); // İlk 100 ilanı getir
+      const resData = await getListings(1, 100);
 
-      console.log("Gelen İlanlar:", response.data);
+      // Paged yapı: resData = { items, totalCount, ... }
+      const items = resData?.items || (Array.isArray(resData) ? resData : []);
 
-      if (response.data.success) {
-        // Gelen listeyi Translator kartlarının beklediği modele (DTO) dönüştür (Mapping)
-        // Beklenen response.data -> { success: true, data: Array(2), totalCount: 2, ... }
-        const mappedTranslators = (response.data.data || []).map((listing) => ({
-          id: listing.userId, // Favori işlemleri için User ID gerekli
-          listingId: listing.id, // İlanın kendi ID'si (Detay sayfasına gitmek için)
-          fullName: listing.translatorName || listing.name || "Çevirmen",
-          bio: listing.description || "",
-          listingNo: listing.listingNo || listing.id, // Artık backend'den ListingNo geliyor
-          createdAt: (() => {
-            const raw = listing.createdAt || listing.createdDate;
-            if (!raw) return "Belirtilmedi";
-            const d = new Date(raw);
-            return d.getFullYear() > 2000
-              ? d.toLocaleDateString("tr-TR")
-              : "Belirtilmedi";
-          })(),
-          gender: (() => {
-            const g = listing.gender;
-            console.log(
-              "GENDER DEBUG:",
-              listing.translatorName,
-              "→ gender:",
-              g,
-            );
-            if (!g || g === "" || g === 0 || g === "0" || g === "NotSpecified")
-              return "Belirtilmedi";
-            if (g === "Male" || g === "male" || g === 1 || String(g) === "1")
-              return "Erkek";
-            if (
-              g === "Female" ||
-              g === "female" ||
-              g === 2 ||
-              String(g) === "2"
-            )
-              return "Kadın";
-            return g; // direkt döndür (Erkek/Kadın zaten yazılmışsa)
-          })(),
-          phone: listing.phone || "Belirtilmedi",
-          photoUrl:
-            listing.images && listing.images.length > 0
-              ? listing.images[0]
-              : `https://ui-avatars.com/api/?name=${encodeURIComponent(listing.translatorName || "Çevirmen")}&background=random`,
-          languages: (() => {
-            // Backend artık sourceLanguageName/targetLanguageName gönderiyor
-            // Fallback olarak eski languageMap ID lookup'ı da var
-            const srcName =
-              listing.sourceLanguageName ||
-              listing.sourceLanguage ||
-              languageMap[listing.sourceLanguageId] ||
-              null;
-            const tgtName =
-              listing.targetLanguageName ||
-              listing.targetLanguage ||
-              languageMap[listing.targetLanguageId] ||
-              null;
-            return srcName && tgtName
-              ? [{ sourceLanguage: srcName, targetLanguage: tgtName }]
-              : [];
-          })(),
-        }));
+      const mappedTranslators = items.map((listing) => ({
+        id: listing.userId,
+        listingId: listing.id,
+        fullName: listing.translatorName || listing.name || "Çevirmen",
+        bio: listing.description || "",
+        listingNo: listing.listingNo || listing.id,
+        createdAt: (() => {
+          const raw = listing.createdAt || listing.createdDate;
+          if (!raw) return "Belirtilmedi";
+          const d = new Date(raw);
+          return d.getFullYear() > 2000
+            ? d.toLocaleDateString("tr-TR")
+            : "Belirtilmedi";
+        })(),
+        gender: (() => {
+          const g = listing.gender;
+          if (!g || g === "" || g === 0 || g === "0" || g === "NotSpecified")
+            return "Belirtilmedi";
+          if (g === "Male" || g === "male" || g === 1 || String(g) === "1")
+            return "Erkek";
+          if (g === "Female" || g === "female" || g === 2 || String(g) === "2")
+            return "Kadın";
+          return g;
+        })(),
+        phone: listing.phone || "Belirtilmedi",
+        photoUrl: (() => {
+          if (listing.images && listing.images.length > 0) {
+            return `${listing.images[0]}?v=${Date.now()}`;
+          }
+          if (listing.translatorPhotoUrl) {
+             return `${listing.translatorPhotoUrl}?v=${Date.now()}`;
+          }
+          return `https://ui-avatars.com/api/?name=${encodeURIComponent(listing.translatorName || "Çevirmen")}&background=random`;
+        })(),
+        languages: (() => {
+          const srcName =
+            listing.sourceLanguageName ||
+            listing.sourceLanguage ||
+            languageMap[listing.sourceLanguageId] ||
+            null;
+          const tgtName =
+            listing.targetLanguageName ||
+            listing.targetLanguage ||
+            languageMap[listing.targetLanguageId] ||
+            null;
+          return srcName && tgtName
+            ? [{ sourceLanguage: srcName, targetLanguage: tgtName }]
+            : [];
+        })(),
+      }));
 
-        setTranslators(mappedTranslators);
-      }
+      setTranslators(mappedTranslators);
     } catch (error) {
       console.error("Çevirmenler/İlanlar yüklenirken hata:", error);
     } finally {
@@ -211,59 +201,63 @@ const Home = () => {
       cleanParams.page = 1;
       cleanParams.pageSize = 100;
 
-      // Filter servisini çağır. Henüz api.js'te import edilmediyse üst taraftan edeceğiz
-      const response = await filterListings(cleanParams);
+      // Filter servisini çağır
+      const resData = await filterListings(cleanParams);
 
-      if (response.data.success) {
-        // Gelen listeyi yine aynı Translator kart yapısına dönüştür
-        const mappedTranslators = (response.data.data || []).map((listing) => ({
-          id: listing.userId,
-          listingId: listing.id,
-          fullName: listing.translatorName || listing.name || "Çevirmen",
-          bio: listing.description || "",
-          listingNo:
-            listing.listingNo !== undefined ? listing.listingNo : listing.id,
-          createdAt: (() => {
-            const raw = listing.createdAt || listing.createdDate;
-            if (!raw) return "Belirtilmedi";
-            const d = new Date(raw);
-            return d.getFullYear() > 2000
-              ? d.toLocaleDateString("tr-TR")
-              : "Belirtilmedi";
-          })(),
-          gender: (() => {
-            const g = listing.gender;
-            if (!g || g === 0 || g === "0" || g === "NotSpecified")
-              return "Belirtilmedi";
-            if (g === "Male" || g === 1 || String(g) === "1") return "Erkek";
-            if (g === "Female" || g === 2 || String(g) === "2") return "Kadın";
-            return g;
-          })(),
-          phone: listing.phone || "Belirtilmedi",
-          photoUrl:
-            listing.images && listing.images.length > 0
-              ? listing.images[0]
-              : `https://ui-avatars.com/api/?name=${encodeURIComponent(listing.translatorName || "Çevirmen")}&background=random`,
-          languages: (() => {
-            const srcName =
-              listing.sourceLanguageName ||
-              listing.sourceLanguage ||
-              languageMap[listing.sourceLanguageId] ||
-              null;
-            const tgtName =
-              listing.targetLanguageName ||
-              listing.targetLanguage ||
-              languageMap[listing.targetLanguageId] ||
-              null;
-            return srcName && tgtName
-              ? [{ sourceLanguage: srcName, targetLanguage: tgtName }]
-              : [];
-          })(),
-        }));
+      const items = resData?.items || (Array.isArray(resData) ? resData : []);
 
-        setTranslators(mappedTranslators);
-        setCurrentPage(1); // Filtreleme sonrası sayfa başa döner
-      }
+      const mappedTranslators = items.map((listing) => ({
+        id: listing.userId,
+        listingId: listing.id,
+        fullName: listing.translatorName || listing.name || "Çevirmen",
+        bio: listing.description || "",
+        listingNo:
+          listing.listingNo !== undefined ? listing.listingNo : listing.id,
+        createdAt: (() => {
+          const raw = listing.createdAt || listing.createdDate;
+          if (!raw) return "Belirtilmedi";
+          const d = new Date(raw);
+          return d.getFullYear() > 2000
+            ? d.toLocaleDateString("tr-TR")
+            : "Belirtilmedi";
+        })(),
+        gender: (() => {
+          const g = listing.gender;
+          if (!g || g === 0 || g === "0" || g === "NotSpecified")
+            return "Belirtilmedi";
+          if (g === "Male" || g === 1 || String(g) === "1") return "Erkek";
+          if (g === "Female" || g === 2 || String(g) === "2") return "Kadın";
+          return g;
+        })(),
+        phone: listing.phone || "Belirtilmedi",
+        photoUrl: (() => {
+          if (listing.images && listing.images.length > 0) {
+            return `${listing.images[0]}?v=${Date.now()}`;
+          }
+          if (listing.translatorPhotoUrl) {
+             return `${listing.translatorPhotoUrl}?v=${Date.now()}`;
+          }
+          return `https://ui-avatars.com/api/?name=${encodeURIComponent(listing.translatorName || "Çevirmen")}&background=random`;
+        })(),
+        languages: (() => {
+          const srcName =
+            listing.sourceLanguageName ||
+            listing.sourceLanguage ||
+            languageMap[listing.sourceLanguageId] ||
+            null;
+          const tgtName =
+            listing.targetLanguageName ||
+            listing.targetLanguage ||
+            languageMap[listing.targetLanguageId] ||
+            null;
+          return srcName && tgtName
+            ? [{ sourceLanguage: srcName, targetLanguage: tgtName }]
+            : [];
+        })(),
+      }));
+
+      setTranslators(mappedTranslators);
+      setCurrentPage(1); // Filtreleme sonrası sayfa başa döner
     } catch (error) {
       console.error("Filtreleme sırasında hata oluştu:", error);
     } finally {
@@ -271,15 +265,14 @@ const Home = () => {
     }
   };
 
-  // Müşterinin favoriye eklediği çevirmenleri (ID'lerini) çeken fonksiyon
   const fetchFavorites = async () => {
     try {
       const response = await getCustomerFavorites();
-      if (response.data.success) {
-        // Gelen favori listesinden sadece çevirmen ID'lerini bir diziye (array) çevir
-        const fvIds = response.data.data.map((fav) => fav.translatorId);
-        setFavoriteIds(fvIds);
-      }
+      // Axios interceptor veriyi direkt dönebilir (array olarak), veya sarmalanmış olabilir:
+      const resData = response?.data?.data || response?.data || (Array.isArray(response) ? response : []);
+      // Gelen favori listesinden İlan ID'lerini (ListingId) bir diziye çevir
+      const fvIds = resData.map((fav) => fav.listingId || fav.id);
+      setFavoriteIds(fvIds);
     } catch (error) {
       console.error("Favoriler yüklenirken hata:", error);
     }
@@ -288,26 +281,25 @@ const Home = () => {
   // ---------------------------------------------------------------------------------
   // FAVORİYE EKLE / ÇIKAR (KALP İKONUNA TIKLAMA) İŞLEMİ
   // ---------------------------------------------------------------------------------
-  const toggleFavorite = async (translatorId) => {
-    const isAlreadyFavorite = favoriteIds.includes(translatorId);
+  const toggleFavorite = async (listingId) => {
+    const isAlreadyFavorite = favoriteIds.includes(listingId);
 
     try {
       if (isAlreadyFavorite) {
         // Zaten favoriyse => Çıkar
-        await removeFavoriteTranslator(translatorId);
+        await removeFavoriteTranslator(listingId);
         // Frontend'deki listeyi de güncelle (Tıklananı diziden çıkar)
-        setFavoriteIds((prevIds) =>
-          prevIds.filter((id) => id !== translatorId),
-        );
+        setFavoriteIds((prevIds) => prevIds.filter((id) => id !== listingId));
       } else {
         // Favori değilse => Ekle
-        await addFavoriteTranslator(translatorId);
+        await addFavoriteTranslator(listingId);
         // Frontend'deki listeye tıklananı ekle
-        setFavoriteIds((prevIds) => [...prevIds, translatorId]);
+        setFavoriteIds((prevIds) => [...prevIds, listingId]);
       }
     } catch (error) {
-      console.error("Favori işlemi sırasında hata:", error);
-      alert("Favori işlemi başarısız oldu. Lütfen tekrar deneyin.");
+      const backendMsg = error.response?.data?.message || error.message || "Bilinmeyen sunucu hatası";
+      console.error("Favori işlemi sırasında hata:", backendMsg, error.response?.data);
+      alert(`Favori işlemi başarısız oldu:\n${backendMsg}`);
     }
   };
 
@@ -348,15 +340,16 @@ const Home = () => {
       >
         {/* Layout Grid (Sol: Filtre, Sağ: İçerik) */}
         <div
+          className="container home-main-layout"
           style={{
-            display: "grid",
-            gridTemplateColumns: "300px 1fr",
-            gap: "30px",
-            alignItems: "start",
+            display: "flex",
+            gap: "clamp(15px, 3vw, 30px)",
+            padding: "40px 20px",
           }}
         >
           {/* SOL: FİLTRELEME ALANI (Kullanıcının Çizdiği Mavi Alan) */}
           <aside
+            className="glass-panel home-sidebar"
             style={{
               backgroundColor: "#fcfcfc",
               border: "1px solid #e0e0e0",
@@ -658,6 +651,9 @@ const Home = () => {
                 Cinsiyet
               </label>
               <select
+                name="gender"
+                value={filterParams.gender}
+                onChange={handleFilterChange}
                 style={{
                   width: "100%",
                   padding: "10px",
@@ -668,8 +664,8 @@ const Home = () => {
                 }}
               >
                 <option value="">Tümü</option>
-                <option value="erkek">Erkek</option>
-                <option value="kadin">Kadın</option>
+                <option value="1">Erkek</option>
+                <option value="2">Kadın</option>
               </select>
             </div>
 
@@ -697,8 +693,10 @@ const Home = () => {
           <div>
             {/* Üst Arama Paneli (Yeşil Alan) */}
             <div
+              className="home-search-bar"
               style={{
                 display: "flex",
+                flexWrap: "wrap",
                 gap: "10px",
                 marginBottom: "30px",
                 backgroundColor: "#fff",
@@ -713,9 +711,9 @@ const Home = () => {
                 name="searchKeyword"
                 value={filterParams.searchKeyword}
                 onChange={handleFilterChange}
-                placeholder="İlan anahtar kelimesi, isim veya ilan no arayın..."
+                placeholder="İlan ara..."
                 style={{
-                  flex: 1,
+                  flex: "1 1 200px",
                   padding: "12px 15px",
                   borderRadius: "8px",
                   border: "1px solid #ccc",
@@ -724,7 +722,8 @@ const Home = () => {
               />
               <button
                 style={{
-                  padding: "0 25px",
+                  flex: "1 1 100px",
+                  padding: "12px 25px",
                   backgroundColor: "#4f46e5",
                   color: "#fff",
                   borderRadius: "8px",
@@ -738,7 +737,7 @@ const Home = () => {
                 }
                 onMouseOut={(e) => (e.target.style.backgroundColor = "#4f46e5")}
               >
-                İlanı Ara
+                Bul
               </button>
 
               {/* Görünüm Değiştirici (View Switcher) Butonları */}
@@ -748,7 +747,7 @@ const Home = () => {
                   border: "1px solid #ccc",
                   borderRadius: "6px",
                   overflow: "hidden",
-                  marginLeft: "10px",
+                  marginLeft: "auto",
                 }}
               >
                 <button
@@ -960,7 +959,9 @@ const Home = () => {
                     <>
                       {/* KARTLAR */}
                       {paginatedTranslators.map((translator) => {
-                        const isFavorite = favoriteIds.includes(translator.id);
+                        const isFavorite = favoriteIds.includes(
+                          translator.listingId || translator.id,
+                        );
 
                         return (
                           <div
@@ -992,79 +993,29 @@ const Home = () => {
                                 textAlign: "center",
                                 display: "flex",
                                 flexDirection: "column",
-                                alignItems: "center",
-                                position:
-                                  viewMode === "gallery"
-                                    ? "static"
-                                    : "relative",
                               }}
                             >
-                              {translator.photoUrl && (
-                                <img
-                                  src={translator.photoUrl}
-                                  alt={translator.fullName}
-                                  style={{
-                                    width:
-                                      viewMode === "gallery"
-                                        ? "150px"
-                                        : "100px",
-                                    height:
-                                      viewMode === "gallery"
-                                        ? "150px"
-                                        : "100px",
-                                    borderRadius: "50%",
-                                    objectFit: "cover",
-                                    marginBottom:
-                                      viewMode === "gallery" ? "5px" : "10px",
-                                    border: "3px solid #f1f1f1",
-                                  }}
-                                />
-                              )}
-                              {/* KALP İKONU (SADECE CUSTOMER GÖREBİLİR) */}
-                              {userRole === "Customer" && (
-                                <button
-                                  onClick={() => toggleFavorite(translator.id)}
-                                  title={
-                                    isFavorite
-                                      ? "Favorilerden Çıkar"
-                                      : "Favoriye Ekle"
-                                  }
-                                  style={{
-                                    position:
-                                      viewMode === "gallery"
-                                        ? "absolute"
-                                        : "static",
-                                    top:
-                                      viewMode === "gallery" ? "15px" : "auto",
-                                    right:
-                                      viewMode === "gallery" ? "15px" : "auto",
-                                    background: "transparent",
-                                    border: "none",
-                                    cursor: "pointer",
-                                    fontSize: "24px",
-                                    padding: "0",
-                                    transition: "transform 0.2s",
-                                    marginTop:
-                                      viewMode === "gallery" ? "0" : "5px",
-                                  }}
-                                  onMouseOver={(e) =>
-                                    (e.currentTarget.style.transform =
-                                      "scale(1.2)")
-                                  }
-                                  onMouseOut={(e) =>
-                                    (e.currentTarget.style.transform =
-                                      "scale(1)")
-                                  }
-                                >
-                                  <span
+                               {translator.photoUrl && (
+                                  <img
+                                    src={translator.photoUrl}
+                                    alt={translator.fullName}
                                     style={{
-                                      color: isFavorite ? "#dc3545" : "#ccc",
+                                      width:
+                                        viewMode === "gallery"
+                                          ? "150px"
+                                          : "100px",
+                                      height:
+                                        viewMode === "gallery"
+                                          ? "150px"
+                                          : "100px",
+                                      borderRadius: "50%",
+                                      objectFit: "cover",
+                                      marginBottom:
+                                        viewMode === "gallery" ? "5px" : "10px",
+                                      border: "3px solid #f1f1f1",
                                     }}
-                                  >
-                                    {isFavorite ? "❤️" : "🤍"}
-                                  </span>
-                                </button>
-                              )}
+                                  />
+                                )}
                             </div>
 
                             {/* Sağ Taraf: İlan İçeriği */}
@@ -1139,7 +1090,76 @@ const Home = () => {
                                       <strong>Telefon:</strong>{" "}
                                       {translator.phone}
                                     </span>
+
+                                    {/* Yatay Modda Dil Bilgisi */}
+                                    {viewMode === "horizontal" &&
+                                      translator.languages &&
+                                      translator.languages.length > 0 && (
+                                        <div
+                                          style={{
+                                            display: "inline-flex",
+                                            alignItems: "center",
+                                            gap: "5px",
+                                            marginLeft: "10px",
+                                          }}
+                                        >
+                                          <strong style={{ whiteSpace: "nowrap" }}>
+                                            Diller:
+                                          </strong>
+                                          {translator.languages.map(
+                                            (lang, idx) => (
+                                              <span
+                                                key={idx}
+                                                style={{
+                                                  background: "#f0f7ff",
+                                                  padding: "2px 8px",
+                                                  borderRadius: "10px",
+                                                  fontSize: "0.75rem",
+                                                  color: "#0099db",
+                                                  border: "1px solid #d0e8ff",
+                                                }}
+                                              >
+                                                {lang.sourceLanguage} →{" "}
+                                                {lang.targetLanguage}
+                                              </span>
+                                            ),
+                                          )}
+                                        </div>
+                                      )}
                                   </div>
+
+                                  {/* Galeri Modunda Dil Bilgisi (İşaretlenen Alana) */}
+                                  {viewMode === "gallery" &&
+                                    translator.languages &&
+                                    translator.languages.length > 0 && (
+                                      <div
+                                        style={{
+                                          display: "flex",
+                                          justifyContent: "center",
+                                          flexWrap: "wrap",
+                                          gap: "5px",
+                                          marginBottom: "15px",
+                                        }}
+                                      >
+                                        {translator.languages.map((lang, idx) => (
+                                          <span
+                                            key={idx}
+                                            style={{
+                                              background: "#f0f7ff",
+                                              padding: "3px 10px",
+                                              borderRadius: "12px",
+                                              fontSize: "0.75rem",
+                                              color: "#0099db",
+                                              border: "1px solid #d0e8ff",
+                                              fontWeight: "500",
+                                            }}
+                                          >
+                                            {lang.sourceLanguage} →{" "}
+                                            {lang.targetLanguage}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
 
                                   {/* Çevirmen Biyografisi (Sadece Detaylı Görünümde) */}
                                   {viewMode === "detailed" && (
@@ -1219,16 +1239,77 @@ const Home = () => {
                                       viewMode === "gallery" ? "100%" : "auto",
                                   }}
                                 >
-                                  <div
-                                    style={{
-                                      fontSize: "0.8rem",
-                                      color: "#999",
-                                      marginBottom: "5px",
-                                      textAlign: "center",
-                                    }}
-                                  >
-                                    %100 Doğrulanmış
-                                  </div>
+                                  {/* KALP BUTONU (SADECE CUSTOMER) */}
+                                  {userRole === "Customer" && (
+                                    <button
+                                      onClick={() =>
+                                        toggleFavorite(
+                                          translator.listingId || translator.id,
+                                        )
+                                      }
+                                      title={
+                                        isFavorite
+                                          ? "Favorilerden Çıkar"
+                                          : "Favoriye Ekle"
+                                      }
+                                      style={{
+                                        background: "transparent",
+                                        border: "none",
+                                        cursor: "pointer",
+                                        padding: "4px",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        transition: "transform 0.2s",
+                                        // Galeri modunda kartın sol üstüne yerleştir
+                                        ...(viewMode === "gallery" && {
+                                          position: "absolute",
+                                          top: "10px",
+                                          right: "10px",
+                                          zIndex: 2,
+                                        }),
+                                      }}
+                                      onMouseOver={(e) =>
+                                        (e.currentTarget.style.transform =
+                                          "scale(1.2)")
+                                      }
+                                      onMouseOut={(e) =>
+                                        (e.currentTarget.style.transform =
+                                          "scale(1)")
+                                      }
+                                    >
+                                      {isFavorite ? (
+                                        // Dolu kırmızı kalp
+                                        <svg
+                                          xmlns="http://www.w3.org/2000/svg"
+                                          viewBox="0 0 24 24"
+                                          width="28"
+                                          height="28"
+                                        >
+                                          <path
+                                            fill="#dc3545"
+                                            d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                                          />
+                                        </svg>
+                                      ) : (
+                                        // Boş outline kalp (siyah çizgi)
+                                        <svg
+                                          xmlns="http://www.w3.org/2000/svg"
+                                          viewBox="0 0 24 24"
+                                          width="28"
+                                          height="28"
+                                        >
+                                          <path
+                                            fill="none"
+                                            stroke="#555"
+                                            strokeWidth="1.8"
+                                            d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                                          />
+                                        </svg>
+                                      )}
+                                    </button>
+                                  )}
+                                  {/* İLANI İNCELE BUTONU */}
                                   <button
                                     className="btn-modern"
                                     style={{
@@ -1248,6 +1329,16 @@ const Home = () => {
                                   >
                                     İlanı İncele
                                   </button>
+                                  {/* %100 DOĞRULANMIŞ (BUTONUN ALTINDA) */}
+                                  <div
+                                    style={{
+                                      fontSize: "0.8rem",
+                                      color: "#999",
+                                      textAlign: "center",
+                                    }}
+                                  >
+                                    %100 Doğrulanmış
+                                  </div>
                                 </div>
                               </div>
                             </div>

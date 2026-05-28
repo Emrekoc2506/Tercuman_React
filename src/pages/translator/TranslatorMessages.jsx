@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
-import { getTranslatorMessages } from "../../services/api";
-import chatService from "../../services/chatService"; // SignalR servisi
+import { getTranslatorMessages, getConversations } from "../../services/api";
+import chatService from "../../services/chatService";
+import { FaUserCircle } from "react-icons/fa";
 
 // ==============================================================================
 // TRANSLATOR MESSAGES (MESAJLARIM) - SPLIT VIEW CHAT
@@ -19,8 +20,28 @@ const TranslatorMessages = () => {
 
   // Sayfa yüklendiğinde sohbet listesini çek
   useEffect(() => {
-    fetchMessages();
+    const fetchCurrentUserId = () => {
+      const token = localStorage.getItem("token");
+      if (token) {
+        try {
+          const payload = JSON.parse(atob(token.split(".")[1]));
+          return payload[
+            "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"
+          ];
+        } catch (e) {
+          return null;
+        }
+      }
+      return null;
+    };
+    const currentUserId = fetchCurrentUserId();
+    fetchMessages(currentUserId);
   }, []);
+
+  const selectedConversationRef = useRef(null);
+  useEffect(() => {
+    selectedConversationRef.current = selectedConversation;
+  }, [selectedConversation]);
 
   // SignalR bağlantısı ve mesaj dinleme
   useEffect(() => {
@@ -34,30 +55,32 @@ const TranslatorMessages = () => {
       }
     };
 
-    const handleReceiveMessage = (senderId, text, timestamp) => {
-      // Eğer şu an açık olan sohbete mesaj geldiyse, direkt ekrana bas (Dummy kontrol)
-      const newMsg = {
-        id: Date.now().toString(),
-        text,
-        timestamp: timestamp || new Date().toISOString(),
-        isMine: false,
-      };
-
-      setMessages((prev) => [...prev, newMsg]);
-
-      // Soldaki son mesaj alanını güncelle
+    const handleReceiveMessage = (message) => {
+      const currentConv = selectedConversationRef.current;
+      
+      // Soldaki son mesaj alanını her halükarda güncelle
       setConversations((prev) =>
         prev.map((c) =>
-          c.id === senderId || c.email === senderId // Basit eşleştirme
+          c.id === message.conversationId
             ? {
                 ...c,
-                lastMessage: text,
-                lastMessageDate: newMsg.timestamp,
-                history: [...c.history, newMsg],
+                lastMessage: message.text,
+                lastMessageDate: message.createdDate,
               }
             : c,
         ),
       );
+
+      // Sadece o anki açık olan sohbetin mesajları arasına ekle
+      if (currentConv && currentConv.id === message.conversationId) {
+        const newMsg = {
+          id: message.id,
+          text: message.text,
+          timestamp: message.createdDate,
+          isMine: false,
+        };
+        setMessages((prev) => [...prev, newMsg]);
+      }
     };
 
     setupChat();
@@ -69,75 +92,74 @@ const TranslatorMessages = () => {
     };
   }, []);
 
-  const fetchMessages = async () => {
+  const fetchMessages = async (currentUserId) => {
     try {
-      // Offline mesajları çekiyoruz
-      const res = await getTranslatorMessages();
-      let convArray = [];
+      setLoading(true);
+      const res = await getConversations();
 
-      if (res.data?.success) {
-        const data = res.data.data || [];
-        // Gelen offline mesajları email adresine göre grupla (Çünkü offline contact formunda guid id yok)
-        const convMap = {};
-        data.forEach((msg) => {
-          if (!convMap[msg.senderEmail]) {
-            convMap[msg.senderEmail] = {
-              id: msg.senderEmail, // Benzersiz kimlik
-              name: msg.senderName,
-              email: msg.senderEmail,
-              lastMessage: msg.message,
-              lastMessageDate: msg.createdAt,
-              history: [],
-            };
-          }
-          // offline message as history
-          convMap[msg.senderEmail].history.push({
-            id: msg.id,
-            text: msg.message,
-            timestamp: msg.createdAt,
-            isMine: false,
-          });
+      // api.js interceptor zaten "data" yi acarak yolladigi icin
+      // res direkt array olur
+      if (res && Array.isArray(res)) {
+        const mappedConversations = res.map((conv) => {
+          // Karşı tarafın bilgisini bul (Ben olmayan taraf)
+          const isUser1Me = conv.user1Id === currentUserId;
+          const otherUser = isUser1Me ? conv.user2 : conv.user1;
+          const otherUserId = isUser1Me ? conv.user2Id : conv.user1Id;
+
+          return {
+            id: conv.conversationId, // Backend ConversationListDto 'ConversationId' dönüyor
+            name: conv.userName || "Kullanıcı", // DTO'da UserName zaten var
+            lastMessage: conv.lastMessage || "Henüz mesaj yok",
+            lastMessageDate: conv.lastMessageDate || new Date().toISOString(),
+            receiverId: conv.userId, // DTO'da UserId (karşı tarafın ID'si) zaten var
+          };
         });
-        convArray = Object.values(convMap).sort(
-          (a, b) => new Date(b.lastMessageDate) - new Date(a.lastMessageDate),
+
+        setConversations(
+          mappedConversations.sort(
+            (a, b) => new Date(b.lastMessageDate) - new Date(a.lastMessageDate),
+          ),
         );
       }
-
-      // SignalR test için listeye bir tane dummy "Canlı Destek" conversation ekleyelim
-      convArray.unshift({
-        id: "dummy-1", // Guid formatı gibi düşünün
-        name: "Canlı Destek (Test)",
-        email: "destek@tercuman.com",
-        lastMessage: "Merhaba, size nasıl yardımcı olabilirim?",
-        lastMessageDate: new Date().toISOString(),
-        history: [
-          {
-            id: "m1",
-            text: "Merhaba, size nasıl yardımcı olabilirim?",
-            timestamp: new Date().toISOString(),
-            isMine: false,
-          },
-        ],
-      });
-
-      setConversations(convArray);
     } catch (error) {
-      if (error.response?.status === 404) {
-        console.warn(
-          "Backend geçmiş mesaj servisi (GET /translator/messages) henüz oluşturulmamış /aktif değil. (404)",
-        );
-      } else {
-        console.error("Mesajlar yüklenirken hata:", error);
-      }
+      console.error("Konuşmalar yüklenirken hata:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadConversationMessages = async (convId) => {
+    const token = localStorage.getItem("token");
+    let currentUserId = null;
+    if (token) {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      currentUserId =
+        payload[
+          "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"
+        ];
+    }
+
+    try {
+      const res = await getTranslatorMessages(convId);
+      if (res && Array.isArray(res)) {
+        setMessages(
+          res.map((msg) => ({
+            id: msg.id,
+            text: msg.text,
+            timestamp: msg.createdDate,
+            isMine: msg.senderId === currentUserId,
+          })),
+        );
+      }
+    } catch (err) {
+      console.error("Mesajlar yüklenemedi:", err);
     }
   };
 
   // Sohbet değiştiğinde sağ taraftaki mesaj alanını yenile
   useEffect(() => {
     if (selectedConversation) {
-      setMessages(selectedConversation.history || []);
+      loadConversationMessages(selectedConversation.id);
     }
     scrollToBottom();
   }, [selectedConversation]);
@@ -181,14 +203,12 @@ const TranslatorMessages = () => {
     setInputText("");
 
     try {
-      // Backend tarafında ReceiverId Guid olmalı, Guid formatıysa SignalR üzerinden gönder:
-      if (selectedConversation.id.length === 36) {
-        await chatService.sendMessage(selectedConversation.id, inputText);
-      } else {
-        console.log(
-          "Çevrimdışı (Offline) iletişim mesajına API üzerinden cevap atılamaz, e-posta gönderilmeli.",
-        );
-      }
+      // Backend tarafında SendMessage(conversationId, receiverId, text) bekliyor.
+      await chatService.sendMessage(
+        selectedConversation.id,
+        selectedConversation.receiverId,
+        inputText,
+      );
     } catch (err) {
       console.error("SignalR Mesaj gönderme hatası:", err);
     }

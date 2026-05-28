@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import chatService from "../services/chatService";
+import { startConversation, getTranslatorMessages } from "../services/api";
 
 const ChatModal = ({ receiverId, receiverName, onClose }) => {
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState("");
   const [isConnected, setIsConnected] = useState(false);
+  const [activeConversationId, setActiveConversationId] = useState(null);
   const messagesEndRef = useRef(null);
 
   // Otomatik aşağı kaydırma
@@ -16,42 +18,64 @@ const ChatModal = ({ receiverId, receiverName, onClose }) => {
     scrollToBottom();
   }, [messages]);
 
+  const activeConversationIdRef = useRef(null);
+  
+  // Ref'i güncel tut
+  useEffect(() => {
+    activeConversationIdRef.current = activeConversationId;
+  }, [activeConversationId]);
+
   useEffect(() => {
     let isMounted = true;
 
-    // TODO: Gerçek senaryoda backend 'GET /api/Messages/history/{receiverId}' endpointi buraya bağlanacak.
-    // Şimdilik UI testleri için modal açıldığında dummy bir geçmiş (history) yüklüyoruz.
-    const loadMessageHistory = async () => {
-      // await some dummy delay
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      if (isMounted) {
-        setMessages([
-          {
-            senderId: receiverId,
-            text: "Merhaba, size nasıl yardımcı olabilirim?",
-            timestamp: new Date(Date.now() - 3600000).toISOString(),
+    const setupChat = async () => {
+      try {
+        // Step 1: Start or get the conversation ID from backend
+        const convRes = await startConversation(receiverId);
+        // api.js interceptor response.data.data döndürüyor, yani convRes direkt objenin kendisidir.
+        const convId = convRes?.conversationId || convRes?.data?.conversationId;
+        
+        if (!convId) {
+           console.error("Conversation ID alınamadı:", convRes);
+           return;
+        }
+        
+        if (isMounted) setActiveConversationId(convId);
+
+        // Step 2: Load real history
+        const historyRes = await getTranslatorMessages(convId);
+        const historyData = Array.isArray(historyRes) ? historyRes : (historyRes?.data || []);
+        
+        if (isMounted && historyData.length > 0) {
+          setMessages(historyData.map(msg => ({
+            senderId: msg.senderId,
+            text: msg.text,
+            timestamp: msg.createdDate
+          })));
+        }
+
+        // Step 3: Setup SignalR
+        await chatService.startConnection();
+        if (isMounted) setIsConnected(true);
+      } catch (err) {
+        console.error("ChatModal Başlatma Hatası:", err);
+      }
+    };
+
+    const handleReceiveMessage = (message) => {
+      // Sadece bu konuşmaya ait mesajları ekle
+      if (message.conversationId === activeConversationIdRef.current) {
+        setMessages((prev) => [
+          ...prev,
+          { 
+            senderId: message.senderId, 
+            text: message.text, 
+            timestamp: message.createdDate 
           },
         ]);
       }
     };
 
-    const setupChat = async () => {
-      try {
-        await chatService.startConnection();
-        if (isMounted) setIsConnected(true);
-      } catch (err) {
-        console.error("ChatModal: Bağlantı başlatılamadı", err);
-      }
-    };
-
-    const handleReceiveMessage = (senderId, text, timestamp) => {
-      setMessages((prev) => [
-        ...prev,
-        { senderId, text, timestamp: timestamp || new Date().toISOString() },
-      ]);
-    };
-
-    loadMessageHistory();
     setupChat();
     chatService.onMessageReceived(handleReceiveMessage);
 
@@ -59,19 +83,24 @@ const ChatModal = ({ receiverId, receiverName, onClose }) => {
       isMounted = false;
       chatService.removeMessageCallback(handleReceiveMessage);
     };
-  }, [receiverId]);
+  }, [receiverId]); // Sadece receiver değişirse çalışsın!
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!inputText.trim()) return;
 
+    if (!activeConversationId) {
+      alert("Sohbet başlatılamadı.");
+      return;
+    }
+
     try {
-      await chatService.sendMessage(receiverId, inputText);
-      // Mesajı kendi ekranımıza da ekleyelim (Backend ekolu (echo) geri dönmüyorsa)
+      await chatService.sendMessage(activeConversationId, receiverId, inputText);
+      // Mesajı kendi ekranımıza da ekleyelim
       setMessages((prev) => [
         ...prev,
         {
-          senderId: "ME", // Kendi mesajım olduğunu belirtmek için
+          senderId: "ME", 
           text: inputText,
           timestamp: new Date().toISOString(),
         },

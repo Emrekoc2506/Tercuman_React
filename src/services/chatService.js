@@ -27,9 +27,11 @@ class ChatService {
       .build();
 
     // Gelen mesajı dinle (Backend 'ReceiveMessage' göndermeli)
-    this.connection.on("ReceiveMessage", (senderId, messageText, timestamp) => {
+    // Backend Not: public async Task SendMessage(Guid conversationId, Guid receiverId, string text)
+    // ReceiveMessage client tarafında dönen veri: message objesi (id, text, senderId, receiverId, etc.)
+    this.connection.on("ReceiveMessage", (message) => {
       this.messageCallbacks.forEach((cb) =>
-        cb(senderId, messageText, timestamp),
+        cb(message),
       );
     });
 
@@ -54,13 +56,14 @@ class ChatService {
   }
 
   // Mesaj gönder (Backend'de 'SendMessage' metodunu tetikler)
-  async sendMessage(receiverId, messageText) {
+  // Backend Signature: SendMessage(Guid conversationId, Guid receiverId, string text)
+  async sendMessage(conversationId, receiverId, messageText) {
     if (
       this.connection &&
       this.connection.state === signalR.HubConnectionState.Connected
     ) {
       try {
-        await this.connection.invoke("SendMessage", receiverId, messageText);
+        await this.connection.invoke("SendMessage", conversationId, receiverId, messageText);
         console.log("Mesaj gönderildi.");
       } catch (err) {
         console.error("Mesaj gönderim hatası:", err);
@@ -70,7 +73,7 @@ class ChatService {
       console.error("SignalR bağlı değil. Mesaj gönderilemedi.");
       // Bağlantı yoksa başlatmayı dene
       await this.startConnection();
-      await this.connection.invoke("SendMessage", receiverId, messageText);
+      await this.connection.invoke("SendMessage", conversationId, receiverId, messageText);
     }
   }
 
